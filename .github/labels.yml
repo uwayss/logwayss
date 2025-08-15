@@ -1,0 +1,34 @@
+# Default repository labels
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+- name: docs
+  color: 0075ca
+  description: Documentation-only changes
+- name: spec
+  color: 0e8a16
+  description: Specification work
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed
+- name: question
+  color: d876e3
+  description: Further information is requested
+- name: security
+  color: 8b0000
+  description: Security vulnerability or hardening
+- name: refactor
+  color: fbca04
+  description: Refactoring code
+- name: performance
+  color: fef2c0
+  description: Performance improvements
+- name: chore
+  color: cccccc
+  description: Build, tooling, CI, or other chores
