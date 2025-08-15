@@ -1,0 +1,19 @@
+{
+  "name": "@logwayss/core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node dist/test/smoke.test.js",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.5.0"
+  }
+}

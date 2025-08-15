@@ -1,0 +1,39 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Node / JS
+node_modules/
+dist/
+.npmrc
+.npm/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.build/
+.eggs/
+.venv/
+venv/
+.env
+
+# Go
+bin/
+*.test
+*.exe
+*.out
+
+# Editor/IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.Trash-*/
