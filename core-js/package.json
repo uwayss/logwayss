@@ -12,6 +12,9 @@
     "clean": "rm -rf dist",
     "prepare": "npm run build"
   },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3"
+  },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.5.0"
