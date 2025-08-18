@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +17,8 @@ import (
 
 	ccrypto "logwayss/core-go/internal/crypto"
 	"logwayss/core-go/internal/storage"
+
+	"github.com/oklog/ulid/v2"
 )
 
 var (
@@ -23,7 +26,7 @@ var (
 	ErrProfileExists  = errors.New("profile already exists")
 	ErrNotFound       = errors.New("not found")
 	ErrInvalidProfile = errors.New("invalid profile or password")
-	ErrInvalidEntry   = errors.New("entry is missing required fields (id, type)")
+	ErrInvalidEntry   = errors.New("entry is missing required fields (type)")
 	schemaVersion     = 1
 	profileMagic      = "LOGWAYSS_PROFILE"
 	dbFileName        = "db.sqlite3"
@@ -79,25 +82,34 @@ type Core struct {
 
 func New() *Core { return &Core{} }
 
-func (c *Core) CreateEntry(ctx context.Context, e Entry) (Entry, error) {
+func (c *Core) CreateEntry(ctx context.Context, ne NewEntry) (Entry, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if !c.isUnlocked() {
 		return Entry{}, ErrLocked
 	}
-	if e.ID == "" || e.Type == "" {
+	if ne.Type == "" {
 		return Entry{}, ErrInvalidEntry
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if e.CreatedAt.IsZero() {
-		e.CreatedAt, _ = time.Parse(time.RFC3339Nano, now)
+	now := time.Now().UTC()
+	entropy := ulid.Monotonic(rand.Reader, 0)
+	id, err := ulid.New(ulid.Timestamp(now), entropy)
+	if err != nil {
+		return Entry{}, fmt.Errorf("failed to generate entry ID: %w", err)
 	}
-	if e.UpdatedAt.IsZero() {
-		e.UpdatedAt, _ = time.Parse(time.RFC3339Nano, now)
-	}
-	if e.SchemaVersion == 0 {
-		e.SchemaVersion = schemaVersion
+
+	e := Entry{
+		ID:            id.String(),
+		Type:          ne.Type,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+		SchemaVersion: schemaVersion,
+		Tags:          ne.Tags,
+		Source:        ne.Source,
+		DeviceID:      ne.DeviceID,
+		Meta:          ne.Meta,
+		Payload:       ne.Payload,
 	}
 
 	payloadBuf := e.Payload

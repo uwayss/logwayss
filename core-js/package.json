@@ -16,7 +16,8 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "better-sqlite3": "^9.4.3"
+    "better-sqlite3": "^9.4.3",
+    "ulid": "^3.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

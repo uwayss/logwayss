@@ -1,13 +1,14 @@
 export * as crypto from "./crypto.js";
 export * from "./types.js";
 
-import type { Entry, QueryFilter, Pagination } from "./types.js";
+import type { Entry, NewEntry, QueryFilter, Pagination } from "./types.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import * as lwcrypto from "./crypto.js";
 import { createRequire } from "node:module";
+import { ulid } from "ulid";
 
 export class Core {
   private _dataDir?: string;
@@ -59,16 +60,19 @@ export class Core {
     return db;
   }
 
-  async createEntry(_entry: Entry): Promise<Entry> {
+  async createEntry(newEntry: NewEntry): Promise<Entry> {
     if (!this._sessionKey || !this._dataDir) throw new Error("profile locked");
+    if (!newEntry.type) throw new Error("entry.type required");
     const db = await this.getDB();
-    const entry = { ..._entry } as Entry;
-    if (!entry.id) throw new Error("entry.id required");
-    if (!entry.type) throw new Error("entry.type required");
-    entry.schema_version = entry.schema_version ?? this._schemaVersion;
+
     const nowIso = new Date().toISOString();
-    entry.created_at = entry.created_at ?? nowIso;
-    entry.updated_at = entry.updated_at ?? nowIso;
+    const entry: Entry = {
+      ...newEntry,
+      id: ulid(),
+      schema_version: this._schemaVersion,
+      created_at: nowIso,
+      updated_at: nowIso,
+    };
 
     const aad = Buffer.from(
       `schema=${entry.schema_version}|id=${entry.id}|type=${entry.type}`,

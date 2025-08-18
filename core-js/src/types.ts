@@ -1,3 +1,12 @@
+export interface NewEntry {
+  type: string;
+  tags?: string[];
+  source?: string;
+  device_id?: string;
+  meta?: Record<string, unknown>;
+  payload?: unknown;
+}
+
 export interface Entry {
   id: string;
   type: string;

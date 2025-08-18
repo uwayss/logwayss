@@ -2,7 +2,6 @@ import { Core } from "../index.js";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { randomUUID } from "node:crypto";
 
 interface TestResult {
   name: string;
@@ -27,6 +26,7 @@ async function runAllTests() {
   const c = new Core();
   const dir = await mkdtemp(join(tmpdir(), "lwx-js-"));
   const pass = "password";
+  let createdEntryId = "";
 
   try {
     results.push(
@@ -43,30 +43,34 @@ async function runAllTests() {
       }),
     );
 
-    const entryId = randomUUID();
     results.push(
       await test("Entries: can be created", async () => {
-        const entry = {
-          id: entryId,
+        const newEntry = {
           type: "text",
-          schema_version: 1,
           payload: { text: "hello" },
         };
-        await c.createEntry(entry as any);
+        const createdEntry = await c.createEntry(newEntry);
+        if (!createdEntry.id) {
+          throw new Error("createEntry returned an entry with no ID");
+        }
+        createdEntryId = createdEntry.id;
       }),
     );
 
     results.push(
       await test("Entries: can be retrieved", async () => {
-        const got = await c.getEntry(entryId);
-        if (got.id !== entryId) throw new Error("getEntry ID mismatch");
+        const got = await c.getEntry(createdEntryId);
+        if (got.id !== createdEntryId) throw new Error("getEntry ID mismatch");
+        if ((got.payload as any)?.text !== "hello") {
+          throw new Error("getEntry payload mismatch");
+        }
       }),
     );
 
     results.push(
       await test("Entries: can be queried", async () => {
         const res = await c.query({ type: "text" }, { limit: 10 });
-        if (res.length !== 1 || res[0].id !== entryId)
+        if (res.length !== 1 || res[0].id !== createdEntryId)
           throw new Error("query result mismatch");
       }),
     );
@@ -83,9 +87,8 @@ async function runAllTests() {
       await test("Archive: can be imported", async () => {
         // Add a second, temporary entry to make the live DB different from the backup
         await c.createEntry({
-          id: randomUUID(),
           type: "temporary-entry",
-        } as any);
+        });
         const preImportEntries = await c.query({});
         if (preImportEntries.length !== 2) {
           throw new Error(
@@ -98,7 +101,10 @@ async function runAllTests() {
 
         // After import, we should be back to the state with only the first entry
         const finalEntries = await c.query({});
-        if (finalEntries.length !== 1 || finalEntries[0].id !== entryId) {
+        if (
+          finalEntries.length !== 1 ||
+          finalEntries[0].id !== createdEntryId
+        ) {
           throw new Error(
             `Post-import state is incorrect. Expected 1 entry, got ${finalEntries.length}`,
           );

@@ -5,6 +5,17 @@ import (
 	"time"
 )
 
+// NewEntry is used to create a new entry. The core is responsible
+// for generating the ID and timestamps.
+type NewEntry struct {
+	Type     string          `json:"type"`
+	Tags     []string        `json:"tags,omitempty"`
+	Source   string          `json:"source,omitempty"`
+	DeviceID string          `json:"device_id,omitempty"`
+	Meta     map[string]any  `json:"meta,omitempty"`
+	Payload  json.RawMessage `json:"payload,omitempty"`
+}
+
 type Entry struct {
 	ID            string          `json:"id"`
 	Type          string          `json:"type"`

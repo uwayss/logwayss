@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
-	"time"
 
 	ccrypto "logwayss/core-go/internal/crypto"
 )
@@ -51,20 +50,24 @@ func TestClientFlow_Smoke(t *testing.T) {
 			t.Fatalf("failed to marshal payload map: %v", err)
 		}
 
-		entry := Entry{
-			ID:            "01HXXXXXTESTID",
-			Type:          "text",
-			SchemaVersion: 1,
-			Tags:          []string{"test", "go"},
-			Payload:       payloadBytes,
+		newEntry := NewEntry{
+			Type:    "text",
+			Tags:    []string{"test", "go"},
+			Payload: payloadBytes,
 		}
 
-		_, err = c.CreateEntry(ctx, entry)
+		createdEntry, err := c.CreateEntry(ctx, newEntry)
 		if err != nil {
 			t.Fatalf("CreateEntry failed: %v", err)
 		}
+		if createdEntry.ID == "" {
+			t.Fatal("CreateEntry returned an entry with no ID")
+		}
+		if createdEntry.CreatedAt.IsZero() {
+			t.Fatal("CreateEntry returned an entry with no CreatedAt")
+		}
 
-		got, err := c.GetEntry(ctx, entry.ID)
+		got, err := c.GetEntry(ctx, createdEntry.ID)
 		if err != nil {
 			t.Fatalf("GetEntry failed: %v", err)
 		}
@@ -85,7 +88,7 @@ func TestClientFlow_Smoke(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Query failed: %v", err)
 		}
-		if len(results) != 1 || results[0].ID != entry.ID {
+		if len(results) != 1 || results[0].ID != createdEntry.ID {
 			t.Fatalf("Query result mismatch: got %d results", len(results))
 		}
 
@@ -118,7 +121,11 @@ func TestClientFlow_Smoke(t *testing.T) {
 			t.Fatal("Exported archive is an empty file")
 		}
 
-		_, err = c.CreateEntry(ctx, Entry{ID: "another-id", Type: "text", Payload: []byte(`{}`), CreatedAt: time.Now()})
+		// Get the ID of the original entry before creating a new one
+		originalEntries, _ := c.Query(ctx, QueryFilter{}, Pagination{})
+		originalID := originalEntries[0].ID
+
+		_, err = c.CreateEntry(ctx, NewEntry{Type: "text", Payload: []byte(`{}`), DeviceID: "temp-device"})
 		if err != nil {
 			t.Fatalf("Failed to create second entry: %v", err)
 		}
@@ -131,8 +138,8 @@ func TestClientFlow_Smoke(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Query after import failed: %v", err)
 		}
-		if len(entries) != 1 || entries[0].ID != "01HXXXXXTESTID" {
-			t.Fatalf("DB state not restored after import: expected 1 entry with specific ID, got %d", len(entries))
+		if len(entries) != 1 || entries[0].ID != originalID {
+			t.Fatalf("DB state not restored after import: expected 1 entry with ID %s, got %d entries", originalID, len(entries))
 		}
 	})
 }
