@@ -6,11 +6,13 @@ Thumbs.db
 *.swp
 *.swo
 
-# Node / JS
-node_modules/
-dist/
-.npmrc
-.npm/
+# Editor/IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.Trash-*/
 
 # Python
 __pycache__/
@@ -23,17 +25,3 @@ __pycache__/
 .venv/
 venv/
 .env
-
-# Go
-bin/
-*.test
-*.exe
-*.out
-
-# Editor/IDE
-.vscode/
-.idea/
-*.iml
-
-# OS
-.Trash-*/
