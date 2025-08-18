@@ -5,6 +5,7 @@ Thumbs.db
 *.tmp
 *.swp
 *.swo
+.test-logs/
 
 # Editor/IDE
 .vscode/
@@ -13,4 +14,3 @@ Thumbs.db
 
 # OS
 .Trash-*/
-

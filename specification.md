@@ -57,14 +57,7 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 
 ### 4.1 Android Client
 
-- **Default approach:** Use **Expo Modules** to wrap required native functionality and talk to the core (this **might be changed** later if performance dictates a fully native client).
-- **High‑performance path:** Prefer integrating **core‑go** directly into the Android project.
-
-  - Use **Go Mobile** (`gomobile bind`) to generate an **AAR** (and required `.so`) for Android.
-  - Import the AAR via Gradle and expose methods through a thin Kotlin/Java layer (or directly via the generated bindings).
-  - JS ↔ Native bridge only for UI‑triggered actions when using an Expo wrapper; heavy work stays in Go/native.
-
-- **Fallback:** If Go integration proves impossible for a specific feature, consider a **small C++ shim** as a last resort (discouraged; only if unavoidable).
+- The Android client will be developed using **Expo** and the **`core-js`** library. This approach prioritizes a faster development cycle and a consistent JavaScript-based stack across the mobile and desktop clients.
 
 ### 4.2 Desktop Clients (Windows, Linux/Ubuntu)
 
@@ -192,7 +185,7 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 
 - `core‑go/` — reference core; exports Go API; Go Mobile bindings for Android.
 - `core‑js/` — TS implementation for Electron; published as an npm package.
-- `client‑android/` — Android app (Expo Modules wrapper by default; can go full native).
+- `client‑android/` — Android app built with Expo and `core-js`.
 - `client‑desktop/` — Electron app (Windows/Linux).
 - `processing‑server/` — Go HTTP server with configurable endpoints; contains `scripts/` for local processing scripts and a JSON config mapping endpoints → scripts.
 - `spec‑and‑tests/` — shared API spec, schemas, conformance tests, crypto vectors.
@@ -201,13 +194,12 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 ### 8.2 Local Setup
 
 - **Core packages**: build/install each core locally (e.g., `npm link` for `core‑js`).
-- **Android + Go**: install gomobile toolchain; run `gomobile bind -target=android` to produce an AAR; add to `client‑android` via Gradle/Maven local.
 - **Desktop**: install `core‑js` from git/registry.
 - **Processing server**: build and run the Go server; edit JSON config to register endpoints; drop scripts into `processing‑server/scripts/`.
 
 ### 8.3 Build & Release (industry‑standard)
 
-- **Android**: Gradle builds; R8/proguard; ABI splits; code‑signing; CI via GitHub Actions. Include a step to generate/consume the Go AAR (can be cached).
+- **Android**: Expo builds (EAS); code-signing; CI via GitHub Actions.
 - **Electron**: `electron-builder`; code‑signing on Windows; no auto‑updates in v1.
 - **Server**: Go build; optional systemd service for local host; no third-party cloud dependencies.
 - **Versioning**: SemVer across repos; bump `schema_version` only with migrations; migration scripts versioned.
@@ -260,7 +252,7 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 **Phase 2 — Development**
 
 1. **core‑go** (reference) + crypto/migration modules + conformance tests.
-2. **Android client MVP** (Expo Modules wrapper → core‑go via AAR). No background data collection in v1.
+2. **Android client MVP** (Expo + `core-js`). No background data collection in v1.
 3. **Self‑hosted processing server** (core‑go) with scripts-based endpoints and `.env` `MASTER_PASSWORD` auth, localhost by default.
 4. **Desktop client MVP** (Electron + core‑js). No auto‑updates; optional local version checker.
 
