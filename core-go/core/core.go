@@ -258,21 +258,14 @@ func (c *Core) ExportArchive(ctx context.Context, dest string) error {
 	if !c.isUnlocked() {
 		return ErrLocked
 	}
-	if err := c.db.Close(); err != nil {
-		return fmt.Errorf("failed to close db for export: %w", err)
-	}
-	c.db = nil
 
-	if err := copyFile(filepath.Join(c.dataDir, dbFileName), dest); err != nil {
-		return fmt.Errorf("failed to copy database for export: %w", err)
-	}
-
-	db, err := storage.OpenDB(ctx, filepath.Join(c.dataDir, dbFileName), false)
+	// This command safely creates a compacted, consistent backup of the database,
+	// correctly handling the WAL file.
+	_, err := c.db.ExecContext(ctx, "VACUUM INTO ?", dest)
 	if err != nil {
-		c.sessionKey = nil
-		return fmt.Errorf("FATAL: could not reopen database after export: %w", err)
+		return fmt.Errorf("failed to vacuum database for export: %w", err)
 	}
-	c.db = db
+
 	return nil
 }
 

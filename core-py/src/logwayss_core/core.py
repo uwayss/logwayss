@@ -207,15 +207,14 @@ class Core:
     def export_archive(self, dest: str) -> None:
         if not self.is_unlocked() or not self._data_dir:
             raise RuntimeError("Profile is locked")
-        
-        db_path = self._data_dir / DB_FILE_NAME
-        
-        if self._db:
-            self._db.close()
-            self._db = None
 
-        shutil.copyfile(db_path, dest)
-        self._get_db() # Re-establish connection
+        # Use the online backup API to safely copy the database.
+        # This correctly handles the WAL file and ensures a consistent snapshot.
+        b_conn = sqlite3.connect(dest)
+        with b_conn:
+            self._get_db().backup(b_conn)
+        b_conn.close()
+
 
     def import_archive(self, src: str) -> None:
         if not self.is_unlocked() or not self._data_dir:
