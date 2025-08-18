@@ -1,91 +1,142 @@
-import { Core, crypto } from '../index.js';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
+import { Core } from "../index.js";
+import { mkdtemp, rm, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 
-async function main() {
-  const C = { cyan: '\x1b[36m', reset: '\x1b[0m' } as const;
-  const banner = (msg: string) => console.log(`${C.cyan}==>${C.reset} ${msg}`);
-  const pass = (msg: string) => console.log(`✅ ${msg}`);
-  const fail = (msg: string) => console.log(`❌ ${msg}`);
-  const skip = (msg: string) => console.log(`⏭️ ${msg}`);
-  const notimpl = (msg: string) => console.log(`🚧 ${msg}`);
-
-  banner('core-js: crypto roundtrip');
-  // Crypto roundtrip
-  const salt = Buffer.from('3030303030303030303030303030303030303030303030303030303030303030', 'hex');
-  const key = await crypto.deriveKey('password', salt, { N: 1 << 14, r: 8, p: 1, keyLen: 32 });
-  const aad = Buffer.from('schema=1|id=ulid|type=text', 'utf8');
-  const { iv, tag, ciphertext } = crypto.encrypt(aad, key, Buffer.from('hello, logwayss'));
-  const pt = crypto.decrypt(aad, key, iv, tag, ciphertext);
-  if (pt.toString('utf8') !== 'hello, logwayss') throw new Error('crypto roundtrip failed');
-  pass('AES-GCM roundtrip passed');
-
-  const core = new Core();
-
-  // Profile lifecycle
-  banner('core-js: profile lifecycle');
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lwx-js-'));
-  console.log('data dir:', tmp);
-  let notImplCount = 0;
-  try { await core.createProfile(tmp, 'password', { N: 1 << 14, r: 8, p: 1, keyLen: 32 }); pass('createProfile OK'); }
-  catch (e) { notImplCount++; notimpl('createProfile not implemented'); }
-  try { await core.unlockProfile(tmp, 'password'); pass('unlockProfile OK'); }
-  catch (e) { notImplCount++; notimpl('unlockProfile not implemented'); }
-
-  // Entry CRUD + Query
-  banner('core-js: entry CRUD + query');
-  let skipDb = false;
-  const entryId = '01HXJSID000000000000000000000000';
-  try {
-    await core.createEntry({
-      id: entryId,
-      type: 'text',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      schema_version: 1,
-    } as any);
-    pass('createEntry OK');
-  } catch (e: any) {
-    const msg = String(e?.message || e);
-    if (msg.includes('better-sqlite3 not installed')) { skipDb = true; skip('createEntry skipped (SQLite dependency not installed)'); }
-    else if (msg.includes('not implemented')) { notImplCount++; notimpl('createEntry not implemented'); }
-    else { fail(`createEntry failed: ${msg}`); process.exit(1); }
-  }
-  try {
-    if (skipDb) { skip('getEntry skipped'); }
-    else { await core.getEntry(entryId); pass('getEntry OK'); }
-  }
-  catch (e: any) {
-    const msg = String(e?.message || e);
-    if (msg.includes('not implemented')) { notImplCount++; notimpl('getEntry not implemented'); }
-    else { fail(`getEntry failed: ${msg}`); process.exit(1); }
-  }
-  try {
-    if (skipDb) { skip('query skipped'); }
-    else { await core.query({ type: 'text' } as any, { limit: 10, offset: 0 } as any); pass('query OK'); }
-  }
-  catch (e: any) {
-    const msg = String(e?.message || e);
-    if (msg.includes('not implemented')) { notImplCount++; notimpl('query not implemented'); }
-    else { fail(`query failed: ${msg}`); process.exit(1); }
-  }
-
-  // Export/Import
-  banner('core-js: export/import');
-  const dest = path.join(tmp, 'export.lwx');
-  try { await core.exportArchive(dest); pass('exportArchive OK'); }
-  catch (e) { notImplCount++; notimpl('exportArchive not implemented'); }
-  try { if (fs.existsSync(dest)) { await core.importArchive(dest); pass('importArchive OK'); } else { notImplCount++; notimpl('export file not present'); } }
-  catch (e) { notImplCount++; notimpl('importArchive not implemented'); }
-
-  // Lock after operations
-  try { core.lock(); pass('lock OK'); } catch { /* ignore */ }
-  try { void core.isUnlocked(); pass('isUnlocked callable'); } catch { /* ignore */ }
-
-  banner('core-js: summary');
-  console.log('not-implemented count:', notImplCount);
-  pass('core-js smoke OK');
+interface TestResult {
+  name: string;
+  passed: boolean;
+  error?: Error;
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+const test = async (
+  name: string,
+  fn: () => Promise<void>
+): Promise<TestResult> => {
+  try {
+    await fn();
+    return { name, passed: true };
+  } catch (e: any) {
+    return { name, passed: false, error: e };
+  }
+};
+
+async function runAllTests() {
+  const results: TestResult[] = [];
+  const c = new Core();
+  const dir = await mkdtemp(join(tmpdir(), "lwx-js-"));
+  const pass = "password";
+
+  try {
+    results.push(
+      await test("Profile: can be created", async () => {
+        await c.createProfile(dir, pass);
+      })
+    );
+
+    results.push(
+      await test("Profile: can be unlocked", async () => {
+        await c.unlockProfile(dir, pass);
+        if (!c.isUnlocked())
+          throw new Error("isUnlocked returned false after unlock");
+      })
+    );
+
+    const entryId = randomUUID();
+    results.push(
+      await test("Entries: can be created", async () => {
+        const entry = {
+          id: entryId,
+          type: "text",
+          schema_version: 1,
+          payload: { text: "hello" },
+        };
+        await c.createEntry(entry as any);
+      })
+    );
+
+    results.push(
+      await test("Entries: can be retrieved", async () => {
+        const got = await c.getEntry(entryId);
+        if (got.id !== entryId) throw new Error("getEntry ID mismatch");
+      })
+    );
+
+    results.push(
+      await test("Entries: can be queried", async () => {
+        const res = await c.query({ type: "text" }, { limit: 10 });
+        if (res.length !== 1 || res[0].id !== entryId)
+          throw new Error("query result mismatch");
+      })
+    );
+
+    const dest = join(dir, "export.lwx");
+    results.push(
+      await test("Archive: can be exported", async () => {
+        await c.exportArchive(dest);
+        await stat(dest);
+      })
+    );
+
+    results.push(
+      await test("Archive: can be imported", async () => {
+        // Add a second, temporary entry to make the live DB different from the backup
+        await c.createEntry({
+          id: randomUUID(),
+          type: "temporary-entry",
+        } as any);
+        const preImportEntries = await c.query({});
+        if (preImportEntries.length !== 2) {
+          throw new Error(
+            `Pre-import check failed: expected 2 entries, got ${preImportEntries.length}`
+          );
+        }
+
+        // Import the archive, which should overwrite the live DB and restore the 1-entry state
+        await c.importArchive(dest);
+
+        // After import, we should be back to the state with only the first entry
+        const finalEntries = await c.query({});
+        if (finalEntries.length !== 1 || finalEntries[0].id !== entryId) {
+          throw new Error(
+            `Post-import state is incorrect. Expected 1 entry, got ${finalEntries.length}`
+          );
+        }
+      })
+    );
+
+    results.push(
+      await test("Profile: can be locked", async () => {
+        c.lock();
+        if (c.isUnlocked())
+          throw new Error("isUnlocked returned true after lock");
+      })
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+
+  // --- Final Summary ---
+  let failures = 0;
+  const failedTests: TestResult[] = [];
+
+  for (const res of results) {
+    console.log(`  ${res.passed ? "✅" : "❌"} ${res.name}`);
+    if (!res.passed) {
+      failures++;
+      failedTests.push(res);
+    }
+  }
+
+  if (failures > 0) {
+    console.error(`\n--- Failures (${failures}) ---`);
+    for (const res of failedTests) {
+      console.error(`\n❌ ${res.name}`);
+      console.error(res.error);
+    }
+    process.exit(1);
+  }
+}
+
+runAllTests();
