@@ -43,7 +43,7 @@ Please read and follow our `CODE_OF_CONDUCT.md`.
 
 ## Coding Style
 
-- Follow language conventions (Go/TS/Python formatters/linters where applicable).
+- Follow language conventions (Go/TS formatters/linters where applicable).
 - Avoid breaking public APIs without a migration note.
 
 ## Security

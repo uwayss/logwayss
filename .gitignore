@@ -14,14 +14,3 @@ Thumbs.db
 # OS
 .Trash-*/
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.egg-info/
-.build/
-.eggs/
-.venv/
-venv/
-.env

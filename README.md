@@ -8,7 +8,7 @@ A fully open-source, end-to-end encrypted, self-hosted ecosystem for documenting
 
 ## Repos/Packages in this monorepo
 
-See subfolders like `core-go/`, `core-js/`, `core-py/`, `client-android/`, `client-desktop/`, and `processing-server/`.
+See subfolders like `core-go/`, `core-js/`, `client-android/`, `client-desktop/`, and `processing-server/`.
 
 ## Quick Start (Development)
 

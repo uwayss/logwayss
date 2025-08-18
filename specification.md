@@ -34,7 +34,6 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 
 - **core‑go (Go)** — high‑performance, primary reference implementation; targeted for Android native integration and server‑side use.
 - **core‑js (TypeScript/JavaScript)** — for Electron desktop clients and JS environments.
-- **core‑py (Python)** — for the self‑hosted processing server and Python tooling.
 
 ### 3.2 Core Responsibilities
 
@@ -74,7 +73,7 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 
 ### 4.3 Self‑Hosted Processing Server
 
-- Python service using **core‑py** for crypto and data access.
+- Go service using **core‑go** for crypto and data access.
 - **Lightweight HTTP server** with default endpoints defined via a JSON config.
 
   - Users/devs add new endpoints by specifying an `endpoint_name` and a `script_path`; when the endpoint is hit, the server executes the script and returns the result.
@@ -193,25 +192,24 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 
 - `core‑go/` — reference core; exports Go API; Go Mobile bindings for Android.
 - `core‑js/` — TS implementation for Electron; published as an npm package.
-- `core‑py/` — Python implementation for the server; packaged as a wheel.
 - `client‑android/` — Android app (Expo Modules wrapper by default; can go full native).
 - `client‑desktop/` — Electron app (Windows/Linux).
-- `processing‑server/` — Python HTTP server with configurable endpoints; contains `scripts/` for local processing scripts and a JSON config mapping endpoints → scripts.
+- `processing‑server/` — Go HTTP server with configurable endpoints; contains `scripts/` for local processing scripts and a JSON config mapping endpoints → scripts.
 - `spec‑and‑tests/` — shared API spec, schemas, conformance tests, crypto vectors.
 - `docs/` — user/dev docs, security notes, tutorials.
 
 ### 8.2 Local Setup
 
-- **Core packages**: build/install each core locally (e.g., `npm link` for `core‑js`, `pip install -e` for `core‑py`).
+- **Core packages**: build/install each core locally (e.g., `npm link` for `core‑js`).
 - **Android + Go**: install gomobile toolchain; run `gomobile bind -target=android` to produce an AAR; add to `client‑android` via Gradle/Maven local.
 - **Desktop**: install `core‑js` from git/registry.
-- **Processing server**: edit JSON config to register endpoints; drop scripts into `processing‑server/scripts/`.
+- **Processing server**: build and run the Go server; edit JSON config to register endpoints; drop scripts into `processing‑server/scripts/`.
 
 ### 8.3 Build & Release (industry‑standard)
 
 - **Android**: Gradle builds; R8/proguard; ABI splits; code‑signing; CI via GitHub Actions. Include a step to generate/consume the Go AAR (can be cached).
 - **Electron**: `electron-builder`; code‑signing on Windows; no auto‑updates in v1.
-- **Server**: Python packaging; optional systemd service for local host; no third‑party cloud dependencies.
+- **Server**: Go build; optional systemd service for local host; no third-party cloud dependencies.
 - **Versioning**: SemVer across repos; bump `schema_version` only with migrations; migration scripts versioned.
 - **Updates Policy**: Optional, version checker that fetches a single JSON release manifest from GitHub; on by default, strictly no telemetry.
 
@@ -263,7 +261,7 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 
 1. **core‑go** (reference) + crypto/migration modules + conformance tests.
 2. **Android client MVP** (Expo Modules wrapper → core‑go via AAR). No background data collection in v1.
-3. **Self‑hosted processing server** (core‑py) with scripts-based endpoints and `.env` `MASTER_PASSWORD` auth, localhost by default.
+3. **Self‑hosted processing server** (core‑go) with scripts-based endpoints and `.env` `MASTER_PASSWORD` auth, localhost by default.
 4. **Desktop client MVP** (Electron + core‑js). No auto‑updates; optional local version checker.
 
 **Phase 3 — Testing & Release**

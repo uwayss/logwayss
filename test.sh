@@ -66,16 +66,7 @@ run_test() {
                     printf "  %s %s\n", icon, test_name;
                 }
             }'
-    elif [[ "$type" == "py" ]]; then
-        # The new python test is a single case, so we report its docstring and result
-        # This makes it behave just like the other sub-tests
-        if grep -q "test_full_client_flow (.*) ... ok" <<< "$output"; then
-             echo "$output" | sed -n -E "s/^test_full_client_flow \(.*\) \.\.\. ok/  ✅ Full API Lifecycle/p"
-        elif grep -q "FAIL\|ERROR" <<< "$output"; then
-             echo "$output" | sed -n -E "s/^test_full_client_flow \(.*\) \.\.\. (FAIL|ERROR)/  ❌ Full API Lifecycle/p"
-        fi
-        # And also show any other standard tests
-        echo "$output" | sed -n -E 's/^(test_roundtrip) \(.*\) \.\.\. ok/  ✅ Crypto Roundtrip/p'
+    
     else # For JS
         echo "$output" | grep -E '^(  ✅|  ❌|  🚧)'
     fi
@@ -100,18 +91,7 @@ if [ ! -d "${ROOT_DIR}/core-js/node_modules" ]; then
 fi
 run_test "core-js" "js" "${ROOT_DIR}/core-js" npm test
 
-# core-py
-PY_DIR="${ROOT_DIR}/core-py"
-VENV_DIR="${PY_DIR}/.venv"
-if [ ! -d "$VENV_DIR" ]; then
-    python3 -m venv "$VENV_DIR" && \
-    source "${VENV_DIR}/bin/activate" && \
-    python -m pip install -q --upgrade pip && \
-    python -m pip install -e "$PY_DIR" -q --log "${LOG_DIR}/core-py-pip.log" && \
-    deactivate
-fi
-run_test "core-py" "py" "$PY_DIR" \
-    bash -c "source .venv/bin/activate && python -m unittest discover -s tests -p 'test_*.py' -v"
+
 
 # --- Final Summary ---
 info "Final Test Summary"

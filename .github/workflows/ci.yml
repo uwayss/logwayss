@@ -22,22 +22,5 @@ jobs:
           test -f SECURITY.md
           test -f ROADMAP.md
           test -f TASKS.md
-      - name: Validate YAML
-        run: |
-          python - <<'PY'
-          import sys, yaml, pathlib
-          ok=True
-          for p in pathlib.Path('.').rglob('*.yml'):
-              try:
-                  yaml.safe_load(p.read_text())
-              except Exception as e:
-                  print(f"Invalid YAML: {p}: {e}")
-                  ok=False
-          for p in pathlib.Path('.').rglob('*.yaml'):
-              try:
-                  yaml.safe_load(p.read_text())
-              except Exception as e:
-                  print(f"Invalid YAML: {p}: {e}")
-                  ok=False
-          sys.exit(0 if ok else 1)
-          PY
+      - name: Lint YAML files
+        uses: ibiqlik/action-yamllint@v3

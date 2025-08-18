@@ -24,10 +24,7 @@ Use this as a running list. Convert items into GitHub issues as you go.
 - [ ] Electron main-process module with secure IPC
 - [ ] Export/Import
 
-## Core-Py
-- [ ] Crypto wrappers and validators
-- [ ] Entry validation and import/export helpers
-- [ ] Package as wheel
+
 
 ## Client-Android (MVP)
 - [ ] Profile create/unlock with backoff

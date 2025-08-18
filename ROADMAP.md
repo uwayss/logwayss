@@ -18,7 +18,7 @@
   - [ ] Endpoints + MASTER_PASSWORD auth + local-only
 - client-desktop
   - [ ] MVP flows; optional version checker
-- core-js/core-py
+- core-js
   - [ ] API parity for desktop/server
 
 ## Phase 3 — Testing & Release

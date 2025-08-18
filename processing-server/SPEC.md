@@ -38,7 +38,7 @@
   - [ ] Expected stdout JSON: `{ results?: any[], new_entries?: Entry[], warnings?: string[] }`
   - [ ] Error envelope on failure: `{ error: { code, message, details? } }`
 - [ ] Scripts Runtime
-  - [ ] Each script executes in working dir with venv (optional)
+  - [ ] Each script executes in its own working directory.
   - [ ] Deny network by default (documented only in MVP)
   - [ ] Resource limits (soft): max CPU time, max memory (configurable)
 - [ ] Logging & Artifacts
@@ -46,7 +46,7 @@
   - [ ] Store artifacts per-run under `runs/<date>/<endpoint>/<run-id>/`
   - [ ] Rotate logs (10MB x 5)
 - [ ] Packaging
-  - [ ] `pip install -e .` support later; simple `python main.py` for MVP
+  - [ ] Standard Go build process.
 
 ## Acceptance Criteria
 
