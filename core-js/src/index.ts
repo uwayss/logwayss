@@ -24,7 +24,7 @@ export class Core {
       Database = require("better-sqlite3");
     } catch {
       throw new Error(
-        "better-sqlite3 not installed. Run: npm i better-sqlite3"
+        "better-sqlite3 not installed. Run: npm i better-sqlite3",
       );
     }
     const dbPath = path.join(this._dataDir, "db.sqlite3");
@@ -71,22 +71,22 @@ export class Core {
     entry.updated_at = entry.updated_at ?? nowIso;
 
     const aad = Buffer.from(
-      `schema=${entry.schema_version}|id=${entry.id}|type=${entry.type}`
+      `schema=${entry.schema_version}|id=${entry.id}|type=${entry.type}`,
     );
     const payloadBuf = Buffer.from(
       JSON.stringify(entry.payload ?? null),
-      "utf8"
+      "utf8",
     );
     const { iv, tag, ciphertext } = lwcrypto.encrypt(
       aad,
       this._sessionKey,
-      payloadBuf
+      payloadBuf,
     );
 
     const tx = db.transaction((e: Entry) => {
       db.prepare(
         `INSERT INTO entries (id, type, created_at, updated_at, schema_version, source, device_id, meta_json, payload, iv, tag)
-         VALUES (@id, @type, @created_at, @updated_at, @schema_version, @source, @device_id, @meta_json, @payload, @iv, @tag)`
+         VALUES (@id, @type, @created_at, @updated_at, @schema_version, @source, @device_id, @meta_json, @payload, @iv, @tag)`,
       ).run({
         id: e.id,
         type: e.type,
@@ -103,7 +103,7 @@ export class Core {
       const tags = e.tags ?? [];
       if (tags.length) {
         const stmt = db.prepare(
-          "INSERT OR IGNORE INTO entry_tags (entry_id, tag) VALUES (?, ?)"
+          "INSERT OR IGNORE INTO entry_tags (entry_id, tag) VALUES (?, ?)",
         );
         for (const t of tags) stmt.run(e.id, t);
       }
@@ -122,14 +122,14 @@ export class Core {
       .map((r: any) => r.tag as string);
 
     const aad = Buffer.from(
-      `schema=${row.schema_version}|id=${row.id}|type=${row.type}`
+      `schema=${row.schema_version}|id=${row.id}|type=${row.type}`,
     );
     const payloadBuf = lwcrypto.decrypt(
       aad,
       this._sessionKey,
       row.iv as Buffer,
       row.tag as Buffer,
-      row.payload as Buffer
+      row.payload as Buffer,
     );
     let payload: unknown = null;
     try {
@@ -156,7 +156,7 @@ export class Core {
   }
   async query(
     _filter: QueryFilter,
-    _pagination?: Pagination
+    _pagination?: Pagination,
   ): Promise<Entry[]> {
     if (!this._sessionKey || !this._dataDir) throw new Error("profile locked");
     const db = await this.getDB();
@@ -207,14 +207,14 @@ export class Core {
         .all(row.id)
         .map((r: any) => r.tag as string);
       const aad = Buffer.from(
-        `schema=${row.schema_version}|id=${row.id}|type=${row.type}`
+        `schema=${row.schema_version}|id=${row.id}|type=${row.type}`,
       );
       const payloadBuf = lwcrypto.decrypt(
         aad,
         this._sessionKey,
         row.iv as Buffer,
         row.tag as Buffer,
-        row.payload as Buffer
+        row.payload as Buffer,
       );
       let payload: unknown = null;
       try {
@@ -275,7 +275,7 @@ export class Core {
   async createProfile(
     dataDir: string,
     password: string | Buffer,
-    params?: { N: number; r: number; p: number; keyLen?: number }
+    params?: { N: number; r: number; p: number; keyLen?: number },
   ): Promise<void> {
     const defaults = { N: 1 << 15, r: 8, p: 1, keyLen: 32 };
     const scrypt = { ...defaults, ...(params ?? {}) };
@@ -287,7 +287,7 @@ export class Core {
     const key = await lwcrypto.deriveKey(password, salt, scrypt);
     const aad = Buffer.from(
       `schema=${this._schemaVersion}|type=profile`,
-      "utf8"
+      "utf8",
     );
     const payload = Buffer.from(
       JSON.stringify({
@@ -295,7 +295,7 @@ export class Core {
         schema_version: this._schemaVersion,
         created_at: new Date().toISOString(),
       }),
-      "utf8"
+      "utf8",
     );
     const { iv, tag, ciphertext } = lwcrypto.encrypt(aad, key, payload);
 
@@ -317,7 +317,7 @@ export class Core {
    */
   async unlockProfile(
     dataDir: string,
-    password: string | Buffer
+    password: string | Buffer,
   ): Promise<void> {
     const pPath = this.profilePath(dataDir);
     const txt = await fs.readFile(pPath, "utf8");
@@ -333,14 +333,14 @@ export class Core {
     const key = await lwcrypto.deriveKey(password, salt, parsed.scrypt);
     const aad = Buffer.from(
       `schema=${parsed.schema_version}|type=profile`,
-      "utf8"
+      "utf8",
     );
     const plaintext = lwcrypto.decrypt(
       aad,
       key,
       Buffer.from(parsed.iv, "hex"),
       Buffer.from(parsed.tag, "hex"),
-      Buffer.from(parsed.ciphertext, "hex")
+      Buffer.from(parsed.ciphertext, "hex"),
     );
     const obj = JSON.parse(plaintext.toString("utf8")) as { magic: string };
     if (obj.magic !== "LOGWAYSS_PROFILE")

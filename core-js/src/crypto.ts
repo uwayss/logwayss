@@ -15,7 +15,7 @@ export interface ScryptParams {
 export async function deriveKey(
   password: Buffer | string,
   salt: Buffer,
-  params: ScryptParams
+  params: ScryptParams,
 ): Promise<Buffer> {
   const keyLen = params.keyLen ?? 32;
   const passBuf =
@@ -38,7 +38,7 @@ export async function deriveKey(
 export function encrypt(
   aad: Buffer,
   key: Buffer,
-  plaintext: Buffer
+  plaintext: Buffer,
 ): { iv: Buffer; tag: Buffer; ciphertext: Buffer } {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
@@ -53,7 +53,7 @@ export function decrypt(
   key: Buffer,
   iv: Buffer,
   tag: Buffer,
-  ciphertext: Buffer
+  ciphertext: Buffer,
 ): Buffer {
   const decipher = createDecipheriv("aes-256-gcm", key, iv);
   if (aad && aad.length) decipher.setAAD(aad);

@@ -47,34 +47,39 @@ run_test() {
     info "Running tests for ${name}"
     logs["$name"]="$log_file"
 
-    # Execute the command, capturing its output and status
     local output
     output=$((cd "$dir" && "${cmd[@]}") 2>&1)
     local status=$?
     echo "$output" > "$log_file"
 
-    # Process output for clean, unified display
     if [[ "$type" == "go" ]]; then
         echo "$output" | awk '
-            /^=== RUN/ { current_test = $2 }
-            /^--- (PASS|FAIL|SKIP):/ {
-                if ($2 == current_test) {
-                    icon = "✅";
-                    if ($1 == "--- FAIL:") icon = "❌";
-                    if ($1 == "--- SKIP:") icon = "🚧";
-                    printf "  %s %s\n", icon, current_test;
+            /^[[:space:]]*--- (PASS|FAIL|SKIP):/ {
+                status_word = $2;
+                test_name = $3;
+                sub(/:$/, "", status_word);
+                icon = "🚧";
+                if (status_word == "PASS") icon = "✅";
+                if (status_word == "FAIL") icon = "❌";
+                sub(/.*\//, "", test_name);
+                if (test_name != "TestClientFlow_Smoke") {
+                    printf "  %s %s\n", icon, test_name;
                 }
             }'
     elif [[ "$type" == "py" ]]; then
-        echo "$output" | sed -n -E \
-            -e 's/^(test_[a-zA-Z0-9_]*) \(.*\) \.\.\. ok/  ✅ \1/p' \
-            -e 's/^(test_[a-zA-Z0-9_]*) \(.*\) \.\.\. FAIL/  ❌ \1/p' \
-            -e 's/^(test_[a-zA-Z0-9_]*) \(.*\) \.\.\. skipped/  🚧 \1/p'
-    else # For JS, the output is already clean
+        # The new python test is a single case, so we report its docstring and result
+        # This makes it behave just like the other sub-tests
+        if grep -q "test_full_client_flow (.*) ... ok" <<< "$output"; then
+             echo "$output" | sed -n -E "s/^test_full_client_flow \(.*\) \.\.\. ok/  ✅ Full API Lifecycle/p"
+        elif grep -q "FAIL\|ERROR" <<< "$output"; then
+             echo "$output" | sed -n -E "s/^test_full_client_flow \(.*\) \.\.\. (FAIL|ERROR)/  ❌ Full API Lifecycle/p"
+        fi
+        # And also show any other standard tests
+        echo "$output" | sed -n -E 's/^(test_roundtrip) \(.*\) \.\.\. ok/  ✅ Crypto Roundtrip/p'
+    else # For JS
         echo "$output" | grep -E '^(  ✅|  ❌|  🚧)'
     fi
     
-    # Set final status for this run
     if [ "$status" -eq 0 ]; then
         results["$name"]="PASS"
     else
@@ -87,7 +92,7 @@ run_test() {
 info "LogWayss Core Test Suite"
 
 # core-go
-run_test "core-go" "go" "${ROOT_DIR}/core-go" go test -v ./...
+run_test "core-go" "go" "${ROOT_DIR}/core-go" go test -v -tags sqlite ./...
 
 # core-js
 if [ ! -d "${ROOT_DIR}/core-js/node_modules" ]; then
@@ -100,7 +105,6 @@ PY_DIR="${ROOT_DIR}/core-py"
 VENV_DIR="${PY_DIR}/.venv"
 if [ ! -d "$VENV_DIR" ]; then
     python3 -m venv "$VENV_DIR" && \
-    # shellcheck disable=SC1091
     source "${VENV_DIR}/bin/activate" && \
     python -m pip install -q --upgrade pip && \
     python -m pip install -e "$PY_DIR" -q --log "${LOG_DIR}/core-py-pip.log" && \

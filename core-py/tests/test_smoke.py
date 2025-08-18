@@ -1,74 +1,62 @@
-import os
-import tempfile
 import unittest
-
+import tempfile
+import uuid
+from pathlib import Path
 from logwayss_core import Core
 
-
 class TestClientFlowSmoke(unittest.TestCase):
-    def setUp(self):
-        self.core = Core()
-        self.tmpdir = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmpdir.cleanup)
-
     def test_full_client_flow(self):
-        CYAN = "\033[36m"; RESET = "\033[0m"
-        def banner(msg: str): print(f"{CYAN}==>{RESET} {msg}")
-        def passed(msg: str): print(f"✅ {msg}")
-        def skipped(msg: str): print(f"⏭️ {msg}")
-        def notimpl(msg: str): print(f"🚧 {msg}")
+        """Runs the full API lifecycle for core-py"""
+        core = Core()
+        password = "password"
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Step 1: Profile Creation
+            core.create_profile(tmpdir, password, N=1 << 14, r=8, p=1)
+            self.assertTrue((Path(tmpdir) / "profile.json").exists(), "Profile file was not created")
 
-        c = self.core
-        data_dir = self.tmpdir.name
+            # Step 2: Profile Unlock and Lock
+            core.unlock_profile(tmpdir, password)
+            self.assertTrue(core.is_unlocked(), "Core should be unlocked after unlock_profile")
+            
+            core.lock()
+            self.assertFalse(core.is_unlocked(), "Core should be locked after lock()")
 
-        # Profile lifecycle (keep unlocked for CRUD)
-        banner("core-py: profile lifecycle")
-        print("data dir:", data_dir)
-        try:
-            c.create_profile(data_dir, "password", N=1 << 14, r=8, p=1, key_len=32)
-            passed("create_profile OK")
-            c.unlock_profile(data_dir, "password"); passed("unlock_profile OK")
-            _ = c.is_unlocked(); passed("is_unlocked callable")
-        except NotImplementedError:
-            notimpl("profile lifecycle not implemented")
-            self.skipTest("⏭️ Profile lifecycle not implemented")
-
-        # Entries & Query
-        banner("core-py: entry CRUD + query")
-        try:
+            # Step 3: CRUD and Query
+            core.unlock_profile(tmpdir, password)
+            entry_id = str(uuid.uuid4())
             entry = {
-                "id": "01HXPYID000000000000000000000000",
+                "id": entry_id,
                 "type": "text",
-                "created_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-01-01T00:00:00Z",
-                "schema_version": 1,
+                "payload": {"message": "hello python"},
+                "tags": ["test", "py"],
             }
-            c.create_entry(entry); passed("create_entry OK")
-            c.get_entry(entry["id"]); passed("get_entry OK")
-            c.query({"type": "text"}, {"limit": 10, "offset": 0}); passed("query OK")
-        except NotImplementedError:
-            notimpl("entry CRUD/query not implemented")
-            self.skipTest("⏭️ Entry CRUD/Query not implemented")
+            core.create_entry(entry)
+            
+            retrieved = core.get_entry(entry_id)
+            self.assertEqual(retrieved["id"], entry_id)
+            self.assertEqual(retrieved["payload"]["message"], "hello python")
+            
+            results = core.query({})
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["id"], entry_id)
 
-        # Export/Import
-        banner("core-py: export/import")
-        dest = os.path.join(data_dir, "export.lwx")
-        try:
-            c.export_archive(dest); passed("export_archive OK")
-            self.assertTrue(os.path.exists(dest)); passed(f"export file exists ({dest})")
-            c.import_archive(dest); passed("import_archive OK")
-        except NotImplementedError:
-            notimpl("export/import not implemented")
-            self.skipTest("⏭️ Export/Import not implemented")
-
-        # Lock at the end
-        try:
-            c.lock(); passed("lock OK")
-            _ = c.is_unlocked(); passed("is_unlocked callable")
-        except Exception:
-            # Don't fail suite on lock/is_unlocked stubs
-            pass
-
+            # Step 4: Export and Import
+            export_path = Path(tmpdir) / "export.lwx"
+            core.export_archive(str(export_path))
+            self.assertTrue(export_path.exists() and export_path.stat().st_size > 0, "Export file was not created or is empty")
+            self.assertTrue(core.is_unlocked(), "Core should remain unlocked after export")
+            
+            # Create a second entry to ensure the import restores the previous state
+            core.create_entry({"id": str(uuid.uuid4()), "type": "temp", "payload": {}})
+            self.assertEqual(len(core.query({})), 2, "Second entry was not created before import")
+            
+            core.import_archive(str(export_path))
+            self.assertTrue(core.is_unlocked(), "Core should remain unlocked after import")
+            
+            final_results = core.query({})
+            self.assertEqual(len(final_results), 1, "Database state was not restored after import")
+            self.assertEqual(final_results[0]["id"], entry_id)
 
 if __name__ == "__main__":
     unittest.main()

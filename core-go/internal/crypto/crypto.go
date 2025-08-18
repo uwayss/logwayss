@@ -14,6 +14,15 @@ const (
 	TagSize = 16
 )
 
+// GenerateSalt creates a random salt of the given size.
+func GenerateSalt(size int) ([]byte, error) {
+	salt := make([]byte, size)
+	if _, err := rand.Read(salt); err != nil {
+		return nil, err
+	}
+	return salt, nil
+}
+
 // DeriveKey derives a key using scrypt with the given parameters.
 func DeriveKey(password, salt []byte, N, r, p, keyLen int) ([]byte, error) {
 	return scrypt.Key(password, salt, N, r, p, keyLen)

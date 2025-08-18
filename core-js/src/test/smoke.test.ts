@@ -12,7 +12,7 @@ interface TestResult {
 
 const test = async (
   name: string,
-  fn: () => Promise<void>
+  fn: () => Promise<void>,
 ): Promise<TestResult> => {
   try {
     await fn();
@@ -32,7 +32,7 @@ async function runAllTests() {
     results.push(
       await test("Profile: can be created", async () => {
         await c.createProfile(dir, pass);
-      })
+      }),
     );
 
     results.push(
@@ -40,7 +40,7 @@ async function runAllTests() {
         await c.unlockProfile(dir, pass);
         if (!c.isUnlocked())
           throw new Error("isUnlocked returned false after unlock");
-      })
+      }),
     );
 
     const entryId = randomUUID();
@@ -53,14 +53,14 @@ async function runAllTests() {
           payload: { text: "hello" },
         };
         await c.createEntry(entry as any);
-      })
+      }),
     );
 
     results.push(
       await test("Entries: can be retrieved", async () => {
         const got = await c.getEntry(entryId);
         if (got.id !== entryId) throw new Error("getEntry ID mismatch");
-      })
+      }),
     );
 
     results.push(
@@ -68,7 +68,7 @@ async function runAllTests() {
         const res = await c.query({ type: "text" }, { limit: 10 });
         if (res.length !== 1 || res[0].id !== entryId)
           throw new Error("query result mismatch");
-      })
+      }),
     );
 
     const dest = join(dir, "export.lwx");
@@ -76,7 +76,7 @@ async function runAllTests() {
       await test("Archive: can be exported", async () => {
         await c.exportArchive(dest);
         await stat(dest);
-      })
+      }),
     );
 
     results.push(
@@ -89,7 +89,7 @@ async function runAllTests() {
         const preImportEntries = await c.query({});
         if (preImportEntries.length !== 2) {
           throw new Error(
-            `Pre-import check failed: expected 2 entries, got ${preImportEntries.length}`
+            `Pre-import check failed: expected 2 entries, got ${preImportEntries.length}`,
           );
         }
 
@@ -100,10 +100,10 @@ async function runAllTests() {
         const finalEntries = await c.query({});
         if (finalEntries.length !== 1 || finalEntries[0].id !== entryId) {
           throw new Error(
-            `Post-import state is incorrect. Expected 1 entry, got ${finalEntries.length}`
+            `Post-import state is incorrect. Expected 1 entry, got ${finalEntries.length}`,
           );
         }
-      })
+      }),
     );
 
     results.push(
@@ -111,7 +111,7 @@ async function runAllTests() {
         c.lock();
         if (c.isUnlocked())
           throw new Error("isUnlocked returned true after lock");
-      })
+      }),
     );
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});

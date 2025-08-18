@@ -2,81 +2,137 @@ package core
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
+	"time"
 
 	ccrypto "logwayss/core-go/internal/crypto"
 )
 
 // This smoke test outlines the full client flow per spec.
-// Each step Skips if the feature is not yet implemented.
 func TestClientFlow_Smoke(t *testing.T) {
 	ctx := context.Background()
 	c := New()
+	dir := t.TempDir()
+	pass := []byte("password")
 
-	t.Run("profile_create_unlock_lock", func(t *testing.T) {
-		t.Logf("==> core-go: profile lifecycle")
-		dir := t.TempDir()
-		pass := []byte("password")
+	// The Core instance is used across subtests to maintain state.
+	t.Run("A_Profile_Create", func(t *testing.T) {
 		if err := c.CreateProfile(ctx, dir, pass, ccrypto.DesktopScrypt); err != nil {
-			if errors.Is(err, ErrNotImplemented) { t.Skip("🚧 CreateProfile not implemented") }
-			t.Fatalf("CreateProfile: %v", err)
+			t.Fatalf("CreateProfile failed: %v", err)
 		}
-		t.Logf("✅ createProfile OK (dir=%s)", dir)
+	})
+
+	t.Run("B_Profile_Unlock_And_Lock", func(t *testing.T) {
 		if err := c.UnlockProfile(ctx, dir, pass); err != nil {
-			if errors.Is(err, ErrNotImplemented) { t.Skip("🚧 UnlockProfile not implemented") }
-			t.Fatalf("UnlockProfile: %v", err)
+			t.Fatalf("UnlockProfile failed: %v", err)
 		}
-		t.Logf("✅ unlockProfile OK")
 		if !c.IsUnlocked() {
-			// If implemented, expect unlocked; otherwise skip
-			t.Skip("⏭️ IsUnlocked not implemented or returning false in stub")
+			t.Fatal("IsUnlocked returned false after successful unlock")
 		}
-		t.Logf("✅ isUnlocked OK")
 		c.Lock()
-		t.Logf("✅ lock OK")
+		if c.IsUnlocked() {
+			t.Fatal("IsUnlocked returned true after lock")
+		}
 	})
 
-	t.Run("entry_crud_and_query", func(t *testing.T) {
-		t.Logf("==> core-go: entry CRUD + query")
-		entry := Entry{ID: "01HXXXXXTESTID", Type: "text", SchemaVersion: 1}
-		_, err := c.CreateEntry(ctx, entry)
+	t.Run("C_Entry_CRUD_and_Query", func(t *testing.T) {
+		if err := c.UnlockProfile(ctx, dir, pass); err != nil {
+			t.Fatalf("UnlockProfile failed: %v", err)
+		}
+		defer c.Lock()
+
+		payloadMap := map[string]interface{}{"message": "hello, logwayss"}
+		payloadBytes, err := json.Marshal(payloadMap)
 		if err != nil {
-			if errors.Is(err, ErrNotImplemented) { t.Skip("🚧 CreateEntry not implemented") }
-			t.Fatalf("CreateEntry: %v", err)
+			t.Fatalf("failed to marshal payload map: %v", err)
 		}
-		t.Logf("✅ createEntry OK")
-		if _, err := c.GetEntry(ctx, entry.ID); err != nil {
-			if errors.Is(err, ErrNotImplemented) { t.Skip("🚧 GetEntry not implemented") }
-			t.Fatalf("GetEntry: %v", err)
+
+		entry := Entry{
+			ID:            "01HXXXXXTESTID",
+			Type:          "text",
+			SchemaVersion: 1,
+			Tags:          []string{"test", "go"},
+			Payload:       payloadBytes,
 		}
-		t.Logf("✅ getEntry OK")
-		if _, err := c.Query(ctx, QueryFilter{Type: "text"}, Pagination{Limit: 10}); err != nil {
-			if errors.Is(err, ErrNotImplemented) { t.Skip("🚧 Query not implemented") }
-			t.Fatalf("Query: %v", err)
+
+		_, err = c.CreateEntry(ctx, entry)
+		if err != nil {
+			t.Fatalf("CreateEntry failed: %v", err)
 		}
-		t.Logf("✅ query OK")
+
+		got, err := c.GetEntry(ctx, entry.ID)
+		if err != nil {
+			t.Fatalf("GetEntry failed: %v", err)
+		}
+
+		var gotPayloadMap map[string]interface{}
+		if err := json.Unmarshal(got.Payload, &gotPayloadMap); err != nil {
+			t.Fatalf("failed to unmarshal retrieved payload: %v", err)
+		}
+
+		if !reflect.DeepEqual(gotPayloadMap, payloadMap) {
+			t.Fatalf("GetEntry payload mismatch: got %v, want %v", gotPayloadMap, payloadMap)
+		}
+		if len(got.Tags) != 2 {
+			t.Fatalf("GetEntry tags mismatch: got %d tags, want 2", len(got.Tags))
+		}
+
+		results, err := c.Query(ctx, QueryFilter{Type: "text"}, Pagination{Limit: 10})
+		if err != nil {
+			t.Fatalf("Query failed: %v", err)
+		}
+		if len(results) != 1 || results[0].ID != entry.ID {
+			t.Fatalf("Query result mismatch: got %d results", len(results))
+		}
+
+		var queryPayloadMap map[string]interface{}
+		if err := json.Unmarshal(results[0].Payload, &queryPayloadMap); err != nil {
+			t.Fatalf("failed to unmarshal query payload: %v", err)
+		}
+
+		if !reflect.DeepEqual(queryPayloadMap, payloadMap) {
+			t.Fatalf("Query payload mismatch: got %v, want %v", queryPayloadMap, payloadMap)
+		}
 	})
 
-	t.Run("export_import_archive", func(t *testing.T) {
-		t.Logf("==> core-go: export/import")
-		tmp := t.TempDir()
-		dest := filepath.Join(tmp, "export.lwx")
+	t.Run("D_Export_Import_Archive", func(t *testing.T) {
+		if err := c.UnlockProfile(ctx, dir, pass); err != nil {
+			t.Fatalf("UnlockProfile failed: %v", err)
+		}
+		defer c.Lock()
+
+		dest := filepath.Join(t.TempDir(), "export.lwx")
 		if err := c.ExportArchive(ctx, dest); err != nil {
-			if errors.Is(err, ErrNotImplemented) { t.Skip("🚧 ExportArchive not implemented") }
-			t.Fatalf("ExportArchive: %v", err)
+			t.Fatalf("ExportArchive failed: %v", err)
 		}
-		t.Logf("✅ exportArchive OK")
-		if _, err := os.Stat(dest); err != nil {
-			if os.IsNotExist(err) { t.Errorf("export file not found: %s", dest) } else { t.Fatalf("stat export: %v", err) }
+
+		fi, err := os.Stat(dest)
+		if err != nil {
+			t.Fatalf("Export file not found or stat failed: %v", err)
 		}
-		t.Logf("✅ export file exists (%s)", dest)
+		if fi.Size() == 0 {
+			t.Fatal("Exported archive is an empty file")
+		}
+
+		_, err = c.CreateEntry(ctx, Entry{ID: "another-id", Type: "text", Payload: []byte(`{}`), CreatedAt: time.Now()})
+		if err != nil {
+			t.Fatalf("Failed to create second entry: %v", err)
+		}
+
 		if err := c.ImportArchive(ctx, dest); err != nil {
-			if errors.Is(err, ErrNotImplemented) { t.Skip("🚧 ImportArchive not implemented") }
-			t.Fatalf("ImportArchive: %v", err)
+			t.Fatalf("ImportArchive failed: %v", err)
 		}
-		t.Logf("✅ importArchive OK")
+
+		entries, err := c.Query(ctx, QueryFilter{}, Pagination{})
+		if err != nil {
+			t.Fatalf("Query after import failed: %v", err)
+		}
+		if len(entries) != 1 || entries[0].ID != "01HXXXXXTESTID" {
+			t.Fatalf("DB state not restored after import: expected 1 entry with specific ID, got %d", len(entries))
+		}
 	})
 }
