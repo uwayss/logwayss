@@ -1,31 +1,29 @@
 export * as crypto from "./crypto.js";
 export * from "./types.js";
+export * from "./platform.js";
 
 import type { Entry, NewEntry, QueryFilter, Pagination } from "./types.js";
 import { validateNewEntry } from "./types.js";
-import path from "node:path";
-import fs from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { randomBytes } from "node:crypto";
-import * as lwcrypto from "./crypto.js";
-import { createRequire } from "node:module";
 import { ulid } from "ulid";
-import Database from "better-sqlite3";
+import type { Platform } from "./platform.js";
 
 export class Core {
   private _dataDir?: string;
   private _sessionKey?: Buffer;
   private _schemaVersion = 1;
   private _db: any | undefined;
+  private _platform: Platform;
+
+  constructor(platform: Platform) {
+    this._platform = platform;
+  }
 
   private async getDB(): Promise<any> {
     if (!this._dataDir) throw new Error("profile locked");
     if (this._db) return this._db;
-    const dbPath = path.join(this._dataDir, "db.sqlite3");
-    const db = new Database(dbPath);
-    db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = ON");
-    db.exec(`
+    const dbPath = this._platform.fs.join(this._dataDir, "db.sqlite3");
+    const db = await this._platform.dbFactory.open(dbPath);
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS entries (
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL,
