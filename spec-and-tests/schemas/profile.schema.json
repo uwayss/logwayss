@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Logwayss Profile",
+  "description": "The profile file for a Logwayss instance.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "description": "The version of the profile schema.",
+      "type": "integer"
+    },
+    "scrypt": {
+      "description": "The scrypt parameters for key derivation.",
+      "type": "object",
+      "properties": {
+        "N": {
+          "type": "integer"
+        },
+        "r": {
+          "type": "integer"
+        },
+        "p": {
+          "type": "integer"
+        },
+        "keyLen": {
+          "type": "integer"
+        }
+      },
+      "required": ["N", "r", "p"]
+    },
+    "salt": {
+      "description": "The salt for key derivation (hex-encoded).",
+      "type": "string"
+    },
+    "iv": {
+      "description": "The initialization vector for AES-GCM (hex-encoded).",
+      "type": "string"
+    },
+    "tag": {
+      "description": "The authentication tag for AES-GCM (hex-encoded).",
+      "type": "string"
+    },
+    "ciphertext": {
+      "description": "The encrypted profile payload (hex-encoded).",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scrypt",
+    "salt",
+    "iv",
+    "tag",
+    "ciphertext"
+  ]
+}

@@ -3,9 +3,11 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	ccrypto "logwayss/core-go/internal/crypto"
@@ -51,7 +53,7 @@ func TestClientFlow_Smoke(t *testing.T) {
 		}
 
 		newEntry := NewEntry{
-			Type:    "text",
+			Type:    EntryTypeText,
 			Tags:    []string{"test", "go"},
 			Payload: payloadBytes,
 		}
@@ -84,7 +86,7 @@ func TestClientFlow_Smoke(t *testing.T) {
 			t.Fatalf("GetEntry tags mismatch: got %d tags, want 2", len(got.Tags))
 		}
 
-		results, err := c.Query(ctx, QueryFilter{Type: "text"}, Pagination{Limit: 10})
+		results, err := c.Query(ctx, QueryFilter{Type: EntryTypeText}, Pagination{Limit: 10})
 		if err != nil {
 			t.Fatalf("Query failed: %v", err)
 		}
@@ -102,7 +104,136 @@ func TestClientFlow_Smoke(t *testing.T) {
 		}
 	})
 
-	t.Run("D_Export_Import_Archive", func(t *testing.T) {
+	t.Run("D_Entry_Validation", func(t *testing.T) {
+		if err := c.UnlockProfile(ctx, dir, pass); err != nil {
+			t.Fatalf("UnlockProfile failed: %v", err)
+		}
+		defer c.Lock()
+
+		// Test valid entry
+		payloadBytes, _ := json.Marshal(map[string]interface{}{"text": "valid entry"})
+		validEntry := NewEntry{
+			Type:    EntryTypeText,
+			Payload: payloadBytes,
+		}
+
+		_, err := c.CreateEntry(ctx, validEntry)
+		if err != nil {
+			t.Fatalf("CreateEntry failed for valid entry: %v", err)
+		}
+
+		// Test invalid entry type
+		invalidTypeEntry := NewEntry{
+			Type:    "invalid_type",
+			Payload: payloadBytes,
+		}
+
+		_, err = c.CreateEntry(ctx, invalidTypeEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for invalid entry type")
+		}
+
+		// Test entry with too many tags
+		tooManyTags := make([]string, 25)
+		for i := range tooManyTags {
+			tooManyTags[i] = fmt.Sprintf("tag%d", i)
+		}
+		
+		tooManyTagsEntry := NewEntry{
+			Type:    EntryTypeText,
+			Tags:    tooManyTags,
+			Payload: payloadBytes,
+		}
+
+		_, err = c.CreateEntry(ctx, tooManyTagsEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for entry with too many tags")
+		}
+
+		// Test entry with tag too long
+		longTagEntry := NewEntry{
+			Type:    EntryTypeText,
+			Tags:    []string{strings.Repeat("a", 55)},
+			Payload: payloadBytes,
+		}
+
+		_, err = c.CreateEntry(ctx, longTagEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for entry with tag too long")
+		}
+
+		// Test entry with source too long
+		longSourceEntry := NewEntry{
+			Type:    EntryTypeText,
+			Source:  strings.Repeat("a", 55),
+			Payload: payloadBytes,
+		}
+
+		_, err = c.CreateEntry(ctx, longSourceEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for entry with source too long")
+		}
+
+		// Test entry with device_id too long
+		longDeviceIDEntry := NewEntry{
+			Type:     EntryTypeText,
+			DeviceID: strings.Repeat("a", 105),
+			Payload:  payloadBytes,
+		}
+
+		_, err = c.CreateEntry(ctx, longDeviceIDEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for entry with device_id too long")
+		}
+
+		// Test entry with invalid meta confidence
+		invalidMetaEntry := NewEntry{
+			Type:    EntryTypeText,
+			Meta:    map[string]any{"confidence": 1.5},
+			Payload: payloadBytes,
+		}
+
+		_, err = c.CreateEntry(ctx, invalidMetaEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for entry with invalid meta confidence")
+		}
+
+		// Test entry with invalid meta visibility
+		invalidVisibilityEntry := NewEntry{
+			Type:    EntryTypeText,
+			Meta:    map[string]any{"visibility": "invalid"},
+			Payload: payloadBytes,
+		}
+
+		_, err = c.CreateEntry(ctx, invalidVisibilityEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for entry with invalid meta visibility")
+		}
+
+		// Test entry with invalid meta sensitivity
+		invalidSensitivityEntry := NewEntry{
+			Type:    EntryTypeText,
+			Meta:    map[string]any{"sensitivity": "invalid"},
+			Payload: payloadBytes,
+		}
+
+		_, err = c.CreateEntry(ctx, invalidSensitivityEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for entry with invalid meta sensitivity")
+		}
+
+		// Test entry without payload
+		noPayloadEntry := NewEntry{
+			Type: EntryTypeText,
+		}
+
+		_, err = c.CreateEntry(ctx, noPayloadEntry)
+		if err == nil {
+			t.Fatal("CreateEntry should have failed for entry without payload")
+		}
+	})
+
+	t.Run("E_Export_Import_Archive", func(t *testing.T) {
 		if err := c.UnlockProfile(ctx, dir, pass); err != nil {
 			t.Fatalf("UnlockProfile failed: %v", err)
 		}
@@ -121,13 +252,16 @@ func TestClientFlow_Smoke(t *testing.T) {
 			t.Fatal("Exported archive is an empty file")
 		}
 
-		// Get the ID of the original entry before creating a new one
+		// Get the IDs of the original entries before creating a new one
 		originalEntries, _ := c.Query(ctx, QueryFilter{}, Pagination{})
-		originalID := originalEntries[0].ID
+		originalIDs := make(map[string]bool)
+		for _, entry := range originalEntries {
+			originalIDs[entry.ID] = true
+		}
 
-		_, err = c.CreateEntry(ctx, NewEntry{Type: "text", Payload: []byte(`{}`), DeviceID: "temp-device"})
+		_, err = c.CreateEntry(ctx, NewEntry{Type: EntryTypeText, Payload: []byte(`{}`), DeviceID: "temp-device"})
 		if err != nil {
-			t.Fatalf("Failed to create second entry: %v", err)
+			t.Fatalf("Failed to create temporary entry: %v", err)
 		}
 
 		if err := c.ImportArchive(ctx, dest); err != nil {
@@ -138,8 +272,65 @@ func TestClientFlow_Smoke(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Query after import failed: %v", err)
 		}
-		if len(entries) != 1 || entries[0].ID != originalID {
-			t.Fatalf("DB state not restored after import: expected 1 entry with ID %s, got %d entries", originalID, len(entries))
+		
+		// After import, we should have the same number of entries as before the temporary entry was added
+		if len(entries) != len(originalIDs) {
+			t.Fatalf("DB state not restored after import: expected %d entries, got %d entries", len(originalIDs), len(entries))
+		}
+		
+		// All original entries should still be present
+		for _, entry := range entries {
+			if !originalIDs[entry.ID] {
+				t.Fatalf("DB state not restored after import: unexpected entry ID %s", entry.ID)
+			}
+		}
+	})
+	
+	t.Run("F_All_Entry_Types", func(t *testing.T) {
+		if err := c.UnlockProfile(ctx, dir, pass); err != nil {
+			t.Fatalf("UnlockProfile failed: %v", err)
+		}
+		defer c.Lock()
+
+		// Test all entry types
+		entryTypes := []EntryType{
+			EntryTypeText,
+			EntryTypeMarkdown,
+			EntryTypeMetrics,
+			EntryTypeMediaRef,
+			EntryTypeEvent,
+			EntryTypeLog,
+		}
+
+		for _, entryType := range entryTypes {
+			var payload json.RawMessage
+			switch entryType {
+			case EntryTypeText:
+				payload, _ = json.Marshal(map[string]interface{}{"text": "sample text"})
+			case EntryTypeMarkdown:
+				payload, _ = json.Marshal(map[string]interface{}{"markdown": "# Header\n\nContent"})
+			case EntryTypeMetrics:
+				payload, _ = json.Marshal(map[string]interface{}{"steps": 1000, "calories": 50})
+			case EntryTypeMediaRef:
+				payload, _ = json.Marshal(map[string]interface{}{"ref": "abc123", "type": "image"})
+			case EntryTypeEvent:
+				payload, _ = json.Marshal(map[string]interface{}{"title": "Meeting", "start": "2023-01-01T10:00:00Z"})
+			case EntryTypeLog:
+				payload, _ = json.Marshal(map[string]interface{}{"source": "app", "message": "App started", "level": "info"})
+			}
+
+			entry := NewEntry{
+				Type:    entryType,
+				Payload: payload,
+			}
+
+			createdEntry, err := c.CreateEntry(ctx, entry)
+			if err != nil {
+				t.Fatalf("CreateEntry failed for type %s: %v", entryType, err)
+			}
+			if createdEntry.Type != entryType {
+				t.Fatalf("Created entry type mismatch: got %s, want %s", createdEntry.Type, entryType)
+			}
 		}
 	})
 }

@@ -2,6 +2,7 @@ export * as crypto from "./crypto.js";
 export * from "./types.js";
 
 import type { Entry, NewEntry, QueryFilter, Pagination } from "./types.js";
+import { validateNewEntry } from "./types.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -9,6 +10,7 @@ import { randomBytes } from "node:crypto";
 import * as lwcrypto from "./crypto.js";
 import { createRequire } from "node:module";
 import { ulid } from "ulid";
+import Database from "better-sqlite3";
 
 export class Core {
   private _dataDir?: string;
@@ -19,15 +21,6 @@ export class Core {
   private async getDB(): Promise<any> {
     if (!this._dataDir) throw new Error("profile locked");
     if (this._db) return this._db;
-    const require = createRequire(import.meta.url);
-    let Database: any;
-    try {
-      Database = require("better-sqlite3");
-    } catch {
-      throw new Error(
-        "better-sqlite3 not installed. Run: npm i better-sqlite3",
-      );
-    }
     const dbPath = path.join(this._dataDir, "db.sqlite3");
     const db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
@@ -62,7 +55,10 @@ export class Core {
 
   async createEntry(newEntry: NewEntry): Promise<Entry> {
     if (!this._sessionKey || !this._dataDir) throw new Error("profile locked");
-    if (!newEntry.type) throw new Error("entry.type required");
+    
+    // Validate the new entry
+    validateNewEntry(newEntry);
+    
     const db = await this.getDB();
 
     const nowIso = new Date().toISOString();

@@ -88,8 +88,10 @@ func (c *Core) CreateEntry(ctx context.Context, ne NewEntry) (Entry, error) {
 	if !c.isUnlocked() {
 		return Entry{}, ErrLocked
 	}
-	if ne.Type == "" {
-		return Entry{}, ErrInvalidEntry
+	
+	// Validate the new entry
+	if err := ne.Validate(); err != nil {
+		return Entry{}, err
 	}
 
 	now := time.Now().UTC()
@@ -288,10 +290,13 @@ func (c *Core) ImportArchive(ctx context.Context, src string) error {
 		return ErrLocked
 	}
 
-	if err := c.db.Close(); err != nil {
-		return fmt.Errorf("failed to close db for import: %w", err)
+	// Close the current database
+	if c.db != nil {
+		if err := c.db.Close(); err != nil {
+			return fmt.Errorf("failed to close db for import: %w", err)
+		}
+		c.db = nil
 	}
-	c.db = nil
 
 	dbPath := filepath.Join(c.dataDir, dbFileName)
 	// CRITICAL FIX: Remove WAL and SHM files to prevent state corruption.

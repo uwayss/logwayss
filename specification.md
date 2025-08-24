@@ -57,7 +57,7 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 
 ### 4.1 Android Client
 
-- The Android client will be developed using **Expo** and the **`core-js`** library. This approach prioritizes a faster development cycle and a consistent JavaScript-based stack across the mobile and desktop clients.
+- The Android client will be developed using **Expo** and the **`core-js`** library. This approach prioritizes a faster development cycle and a consistent JavaScript-based stack across the mobile and desktop clients. Native integration with `core-go` via `gomobile` may be explored post-MVP if performance limitations are identified.
 
 ### 4.2 Desktop Clients (Windows, Linux/Ubuntu)
 
@@ -138,6 +138,14 @@ The Core is implemented as language‑specific ports that expose a **uniform API
 
   - **Relationships**: parent/child, references, threads (for conversations), and collections.
   - **Indices**: timestamps, type, device_id, and tags (via FTS5) for efficient queries.
+  
+- **Entry Validation**: All cores enforce strict validation of entry fields:
+  - Entry types are restricted to: `text`, `markdown`, `metrics`, `media_ref`, `event`, `log`
+  - Maximum of 20 tags per entry, with each tag limited to 50 characters
+  - Source field limited to 50 characters
+  - Device ID limited to 100 characters
+  - Meta fields validated for correct types and values where applicable
+  - Payload is required and cannot be empty
 
 ### 6.2 Storage Strategy
 

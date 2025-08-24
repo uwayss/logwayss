@@ -1,0 +1,181 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Logwayss Entry",
+  "description": "A single entry in a Logwayss profile.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "The unique identifier for the entry (ULID).",
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "type": {
+      "description": "The type of the entry (e.g., 'text', 'image').",
+      "type": "string",
+      "enum": ["text", "markdown", "metrics", "media_ref", "event", "log"]
+    },
+    "created_at": {
+      "description": "The creation timestamp in ISO 8601 format.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "description": "The last update timestamp in ISO 8601 format.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "schema_version": {
+      "description": "The version of the entry schema.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "tags": {
+      "description": "An array of tags for the entry.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 50
+      },
+      "maxItems": 20
+    },
+    "source": {
+      "description": "The source of the entry (e.g., 'ios-app', 'manual').",
+      "type": "string",
+      "maxLength": 50
+    },
+    "device_id": {
+      "description": "The identifier of the device that created the entry.",
+      "type": "string",
+      "maxLength": 100
+    },
+    "meta": {
+      "description": "A flexible key-value store for additional metadata.",
+      "type": "object",
+      "properties": {
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "locale": {
+          "type": "string"
+        },
+        "redacted": {
+          "type": "boolean"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "private", "friends"]
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "relations": {
+          "type": "object",
+          "properties": {
+            "parents": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "refs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "payload": {
+      "description": "The main content of the entry. Structure depends on the entry type.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": ["text"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "markdown": {
+              "type": "string"
+            }
+          },
+          "required": ["markdown"]
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": ["image", "video", "audio"]
+            }
+          },
+          "required": ["ref", "type"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "start": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "end": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "location": {
+              "type": "string"
+            }
+          },
+          "required": ["title", "start"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "level": {
+              "type": "string",
+              "enum": ["debug", "info", "warn", "error"]
+            }
+          },
+          "required": ["source", "message"]
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "created_at",
+    "updated_at",
+    "schema_version",
+    "payload"
+  ]
+}
