@@ -12,6 +12,10 @@ export interface ScryptParams {
   keyLen?: number;
 }
 
+export function randomBytesFn(size: number): Buffer {
+  return randomBytes(size);
+}
+
 export async function deriveKey(
   password: Buffer | string,
   salt: Buffer,

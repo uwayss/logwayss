@@ -21,7 +21,9 @@ export class Core {
   private async getDB(): Promise<any> {
     if (!this._dataDir) throw new Error("profile locked");
     if (this._db) return this._db;
-    const dbPath = this._platform.fs.join(this._dataDir, "db.sqlite3");
+    
+    // Construct path manually since fs.join is not in the interface
+    const dbPath = `${this._dataDir}/db.sqlite3`;
     const db = await this._platform.dbFactory.open(dbPath);
     await db.exec(`
       CREATE TABLE IF NOT EXISTS entries (
@@ -75,7 +77,7 @@ export class Core {
       JSON.stringify(entry.payload ?? null),
       "utf8",
     );
-    const { iv, tag, ciphertext } = lwcrypto.encrypt(
+    const { iv, tag, ciphertext } = this._platform.crypto.encrypt(
       aad,
       this._sessionKey,
       payloadBuf,
@@ -109,6 +111,7 @@ export class Core {
     tx(entry);
     return entry;
   }
+  
   async getEntry(_id: string): Promise<Entry> {
     if (!this._sessionKey || !this._dataDir) throw new Error("profile locked");
     const db = await this.getDB();
@@ -122,7 +125,7 @@ export class Core {
     const aad = Buffer.from(
       `schema=${row.schema_version}|id=${row.id}|type=${row.type}`,
     );
-    const payloadBuf = lwcrypto.decrypt(
+    const payloadBuf = this._platform.crypto.decrypt(
       aad,
       this._sessionKey,
       row.iv as Buffer,
@@ -152,6 +155,7 @@ export class Core {
     };
     return e;
   }
+  
   async query(
     _filter: QueryFilter,
     _pagination?: Pagination,
@@ -207,7 +211,7 @@ export class Core {
       const aad = Buffer.from(
         `schema=${row.schema_version}|id=${row.id}|type=${row.type}`,
       );
-      const payloadBuf = lwcrypto.decrypt(
+      const payloadBuf = this._platform.crypto.decrypt(
         aad,
         this._sessionKey,
         row.iv as Buffer,
@@ -238,12 +242,14 @@ export class Core {
     }
     return out;
   }
+  
   async exportArchive(dest: string): Promise<void> {
     if (!this._sessionKey || !this._dataDir) throw new Error("profile locked");
-    const db = await this.getDB();
-    // Use the backup API to safely copy the database to the destination file.
-    // This creates a consistent snapshot without interfering with live operations.
-    await db.backup(dest);
+    // Construct path manually since fs.join is not in the interface
+    const dbPath = `${this._dataDir}/db.sqlite3`;
+    // Copy the database file
+    const dbData = await this._platform.fs.readFile(dbPath);
+    await this._platform.fs.writeFile(dest, dbData);
   }
 
   async importArchive(src: string): Promise<void> {
@@ -256,14 +262,16 @@ export class Core {
       } catch {}
       this._db = undefined;
     }
-    const dbPath = path.join(this._dataDir, "db.sqlite3");
+    // Construct path manually since fs.join is not in the interface
+    const dbPath = `${this._dataDir}/db.sqlite3`;
     // Copy the source archive file to the database path, replacing it.
-    await fs.copyFile(src, dbPath);
+    const srcData = await this._platform.fs.readFile(src);
+    await this._platform.fs.writeFile(dbPath, srcData);
     // The next call to getDB() will transparently open the newly imported database.
   }
 
   private profilePath(dir: string): string {
-    return path.join(dir, "profile.json");
+    return `${dir}/profile.json`;
   }
 
   /**
@@ -277,12 +285,12 @@ export class Core {
   ): Promise<void> {
     const defaults = { N: 1 << 15, r: 8, p: 1, keyLen: 32 };
     const scrypt = { ...defaults, ...(params ?? {}) };
-    await fs.mkdir(dataDir, { recursive: true });
+    await this._platform.fs.mkdir(dataDir);
     const pPath = this.profilePath(dataDir);
-    if (existsSync(pPath)) throw new Error("profile already exists");
+    if (this._platform.fs.existsSync(pPath)) throw new Error("profile already exists");
 
-    const salt = randomBytes(32);
-    const key = await lwcrypto.deriveKey(password, salt, scrypt);
+    const salt = this._platform.crypto.randomBytes(32);
+    const key = await this._platform.crypto.deriveKey(password, salt, scrypt);
     const aad = Buffer.from(
       `schema=${this._schemaVersion}|type=profile`,
       "utf8",
@@ -295,7 +303,7 @@ export class Core {
       }),
       "utf8",
     );
-    const { iv, tag, ciphertext } = lwcrypto.encrypt(aad, key, payload);
+    const { iv, tag, ciphertext } = this._platform.crypto.encrypt(aad, key, payload);
 
     const out = {
       schema_version: this._schemaVersion,
@@ -305,9 +313,7 @@ export class Core {
       tag: tag.toString("hex"),
       ciphertext: ciphertext.toString("hex"),
     } as const;
-    await fs.writeFile(pPath, JSON.stringify(out, null, 2), {
-      encoding: "utf8",
-    });
+    await this._platform.fs.writeFile(pPath, JSON.stringify(out, null, 2), "utf8");
   }
 
   /**
@@ -318,7 +324,7 @@ export class Core {
     password: string | Buffer,
   ): Promise<void> {
     const pPath = this.profilePath(dataDir);
-    const txt = await fs.readFile(pPath, "utf8");
+    const txt = await this._platform.fs.readFile(pPath, "utf8");
     const parsed = JSON.parse(txt) as {
       schema_version: number;
       scrypt: { N: number; r: number; p: number; keyLen?: number };
@@ -328,12 +334,12 @@ export class Core {
       ciphertext: string;
     };
     const salt = Buffer.from(parsed.salt, "hex");
-    const key = await lwcrypto.deriveKey(password, salt, parsed.scrypt);
+    const key = await this._platform.crypto.deriveKey(password, salt, parsed.scrypt);
     const aad = Buffer.from(
       `schema=${parsed.schema_version}|type=profile`,
       "utf8",
     );
-    const plaintext = lwcrypto.decrypt(
+    const plaintext = this._platform.crypto.decrypt(
       aad,
       key,
       Buffer.from(parsed.iv, "hex"),
@@ -366,6 +372,7 @@ export class Core {
     this._dataDir = undefined;
     this._db = undefined;
   }
+  
   isUnlocked(): boolean {
     return !!this._sessionKey;
   }

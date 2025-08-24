@@ -2,6 +2,7 @@
   "expo": {
     "name": "LogWayss",
     "slug": "logwayss-client-android",
+    "scheme": "logwayss-client-android",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
@@ -22,6 +23,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": ["expo-router"]
   }
 }

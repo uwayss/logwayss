@@ -1,4 +1,4 @@
-import { Entry, NewEntry, QueryFilter, Pagination, validateNewEntry, EntryType } from './types';
+import { Entry, NewEntry, QueryFilter, Pagination, ValidationError, validateNewEntry } from '@logwayss/core';
 import * as FileSystem from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 
@@ -175,7 +175,7 @@ export class Core {
 
     const entry: Entry = {
       id: row.id,
-      type: row.type as EntryType,
+      type: row.type,
       schema_version: row.schema_version,
       created_at: row.created_at,
       updated_at: row.updated_at,
@@ -253,7 +253,7 @@ export class Core {
 
       const entry: Entry = {
         id: row.id,
-        type: row.type as EntryType,
+        type: row.type,
         schema_version: row.schema_version,
         created_at: row.created_at,
         updated_at: row.updated_at,
@@ -307,3 +307,5 @@ export class Core {
     this._db = await SQLite.openDatabaseAsync(dbPath);
   }
 }
+
+export { Entry, NewEntry, QueryFilter, Pagination, ValidationError };
