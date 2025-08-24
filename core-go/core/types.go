@@ -85,7 +85,7 @@ func (ne *NewEntry) Validate() error {
 				return ErrInvalidEntryMeta
 			}
 		}
-		
+
 		if visibility, ok := ne.Meta["visibility"]; ok {
 			if v, ok := visibility.(string); ok {
 				valid := map[string]bool{
@@ -98,7 +98,7 @@ func (ne *NewEntry) Validate() error {
 				}
 			}
 		}
-		
+
 		if sensitivity, ok := ne.Meta["sensitivity"]; ok {
 			if s, ok := sensitivity.(string); ok {
 				valid := map[string]bool{

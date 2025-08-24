@@ -55,10 +55,10 @@ export class Core {
 
   async createEntry(newEntry: NewEntry): Promise<Entry> {
     if (!this._sessionKey || !this._dataDir) throw new Error("profile locked");
-    
+
     // Validate the new entry
     validateNewEntry(newEntry);
-    
+
     const db = await this.getDB();
 
     const nowIso = new Date().toISOString();

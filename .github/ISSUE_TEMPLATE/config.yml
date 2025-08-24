@@ -1,5 +1,6 @@
+---
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
     url: ../SECURITY.md
-    about: Please report security issues privately following our Security Policy.
+    about: Please report security issues privately following our Security Policy

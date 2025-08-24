@@ -1,5 +1,5 @@
 // EntryType represents the type of an entry
-export type EntryType = 
+export type EntryType =
   | "text"
   | "markdown"
   | "metrics"
@@ -60,9 +60,9 @@ export function validateNewEntry(entry: NewEntry): void {
     "metrics",
     "media_ref",
     "event",
-    "log"
+    "log",
   ];
-  
+
   if (!validTypes.includes(entry.type)) {
     throw new ValidationError("Invalid entry type");
   }
@@ -92,25 +92,33 @@ export function validateNewEntry(entry: NewEntry): void {
   // Validate meta
   if (entry.meta) {
     if (entry.meta.confidence !== undefined) {
-      if (typeof entry.meta.confidence !== "number" || 
-          entry.meta.confidence < 0 || 
-          entry.meta.confidence > 1) {
-        throw new ValidationError("Confidence must be a number between 0 and 1");
+      if (
+        typeof entry.meta.confidence !== "number" ||
+        entry.meta.confidence < 0 ||
+        entry.meta.confidence > 1
+      ) {
+        throw new ValidationError(
+          "Confidence must be a number between 0 and 1",
+        );
       }
     }
-    
+
     if (entry.meta.visibility !== undefined) {
       const validVisibility = ["public", "private", "friends"];
-      if (typeof entry.meta.visibility !== "string" || 
-          !validVisibility.includes(entry.meta.visibility)) {
+      if (
+        typeof entry.meta.visibility !== "string" ||
+        !validVisibility.includes(entry.meta.visibility)
+      ) {
         throw new ValidationError("Invalid visibility value");
       }
     }
-    
+
     if (entry.meta.sensitivity !== undefined) {
       const validSensitivity = ["low", "medium", "high"];
-      if (typeof entry.meta.sensitivity !== "string" || 
-          !validSensitivity.includes(entry.meta.sensitivity)) {
+      if (
+        typeof entry.meta.sensitivity !== "string" ||
+        !validSensitivity.includes(entry.meta.sensitivity)
+      ) {
         throw new ValidationError("Invalid sensitivity value");
       }
     }

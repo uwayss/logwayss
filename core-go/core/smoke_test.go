@@ -138,7 +138,7 @@ func TestClientFlow_Smoke(t *testing.T) {
 		for i := range tooManyTags {
 			tooManyTags[i] = fmt.Sprintf("tag%d", i)
 		}
-		
+
 		tooManyTagsEntry := NewEntry{
 			Type:    EntryTypeText,
 			Tags:    tooManyTags,
@@ -272,12 +272,12 @@ func TestClientFlow_Smoke(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Query after import failed: %v", err)
 		}
-		
+
 		// After import, we should have the same number of entries as before the temporary entry was added
 		if len(entries) != len(originalIDs) {
 			t.Fatalf("DB state not restored after import: expected %d entries, got %d entries", len(originalIDs), len(entries))
 		}
-		
+
 		// All original entries should still be present
 		for _, entry := range entries {
 			if !originalIDs[entry.ID] {
@@ -285,7 +285,7 @@ func TestClientFlow_Smoke(t *testing.T) {
 			}
 		}
 	})
-	
+
 	t.Run("F_All_Entry_Types", func(t *testing.T) {
 		if err := c.UnlockProfile(ctx, dir, pass); err != nil {
 			t.Fatalf("UnlockProfile failed: %v", err)

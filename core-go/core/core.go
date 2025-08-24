@@ -88,7 +88,7 @@ func (c *Core) CreateEntry(ctx context.Context, ne NewEntry) (Entry, error) {
 	if !c.isUnlocked() {
 		return Entry{}, ErrLocked
 	}
-	
+
 	// Validate the new entry
 	if err := ne.Validate(); err != nil {
 		return Entry{}, err

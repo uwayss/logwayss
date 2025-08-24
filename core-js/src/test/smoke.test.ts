@@ -1,4 +1,9 @@
-import { Core, ValidationError, validateNewEntry, EntryType } from "../index.js";
+import {
+  Core,
+  ValidationError,
+  validateNewEntry,
+  EntryType,
+} from "../index.js";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -91,26 +96,36 @@ async function runAllTests() {
             payload: { text: "invalid entry" },
           };
           await c.createEntry(invalidTypeEntry);
-          throw new Error("createEntry should have failed for invalid entry type");
+          throw new Error(
+            "createEntry should have failed for invalid entry type",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for invalid entry type");
+            throw new Error(
+              "createEntry should throw ValidationError for invalid entry type",
+            );
           }
         }
 
         // Test entry with too many tags
         try {
-          const tooManyTags = Array(25).fill(0).map((_, i) => `tag${i}`);
+          const tooManyTags = Array(25)
+            .fill(0)
+            .map((_, i) => `tag${i}`);
           const tooManyTagsEntry = {
             type: "text" as EntryType,
             tags: tooManyTags,
             payload: { text: "too many tags" },
           };
           await c.createEntry(tooManyTagsEntry);
-          throw new Error("createEntry should have failed for entry with too many tags");
+          throw new Error(
+            "createEntry should have failed for entry with too many tags",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for entry with too many tags");
+            throw new Error(
+              "createEntry should throw ValidationError for entry with too many tags",
+            );
           }
         }
 
@@ -122,10 +137,14 @@ async function runAllTests() {
             payload: { text: "tag too long" },
           };
           await c.createEntry(longTagEntry);
-          throw new Error("createEntry should have failed for entry with tag too long");
+          throw new Error(
+            "createEntry should have failed for entry with tag too long",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for entry with tag too long");
+            throw new Error(
+              "createEntry should throw ValidationError for entry with tag too long",
+            );
           }
         }
 
@@ -137,10 +156,14 @@ async function runAllTests() {
             payload: { text: "source too long" },
           };
           await c.createEntry(longSourceEntry);
-          throw new Error("createEntry should have failed for entry with source too long");
+          throw new Error(
+            "createEntry should have failed for entry with source too long",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for entry with source too long");
+            throw new Error(
+              "createEntry should throw ValidationError for entry with source too long",
+            );
           }
         }
 
@@ -152,10 +175,14 @@ async function runAllTests() {
             payload: { text: "device_id too long" },
           };
           await c.createEntry(longDeviceIDEntry);
-          throw new Error("createEntry should have failed for entry with device_id too long");
+          throw new Error(
+            "createEntry should have failed for entry with device_id too long",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for entry with device_id too long");
+            throw new Error(
+              "createEntry should throw ValidationError for entry with device_id too long",
+            );
           }
         }
 
@@ -167,10 +194,14 @@ async function runAllTests() {
             payload: { text: "invalid meta" },
           };
           await c.createEntry(invalidMetaEntry);
-          throw new Error("createEntry should have failed for entry with invalid meta confidence");
+          throw new Error(
+            "createEntry should have failed for entry with invalid meta confidence",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for entry with invalid meta confidence");
+            throw new Error(
+              "createEntry should throw ValidationError for entry with invalid meta confidence",
+            );
           }
         }
 
@@ -182,10 +213,14 @@ async function runAllTests() {
             payload: { text: "invalid meta" },
           };
           await c.createEntry(invalidVisibilityEntry);
-          throw new Error("createEntry should have failed for entry with invalid meta visibility");
+          throw new Error(
+            "createEntry should have failed for entry with invalid meta visibility",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for entry with invalid meta visibility");
+            throw new Error(
+              "createEntry should throw ValidationError for entry with invalid meta visibility",
+            );
           }
         }
 
@@ -197,10 +232,14 @@ async function runAllTests() {
             payload: { text: "invalid meta" },
           };
           await c.createEntry(invalidSensitivityEntry);
-          throw new Error("createEntry should have failed for entry with invalid meta sensitivity");
+          throw new Error(
+            "createEntry should have failed for entry with invalid meta sensitivity",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for entry with invalid meta sensitivity");
+            throw new Error(
+              "createEntry should throw ValidationError for entry with invalid meta sensitivity",
+            );
           }
         }
 
@@ -211,10 +250,14 @@ async function runAllTests() {
           };
           // @ts-ignore - intentionally testing invalid entry
           await c.createEntry(noPayloadEntry);
-          throw new Error("createEntry should have failed for entry without payload");
+          throw new Error(
+            "createEntry should have failed for entry without payload",
+          );
         } catch (e) {
           if (!(e instanceof ValidationError)) {
-            throw new Error("createEntry should throw ValidationError for entry without payload");
+            throw new Error(
+              "createEntry should throw ValidationError for entry without payload",
+            );
           }
         }
       }),
@@ -236,7 +279,7 @@ async function runAllTests() {
           payload: { text: "temporary" },
         });
         const preImportEntries = await c.query({});
-        // We should have 3 entries now: the original "hello" entry, 
+        // We should have 3 entries now: the original "hello" entry,
         // the "valid entry" from validation test, and the temporary entry
         if (preImportEntries.length !== 3) {
           throw new Error(
@@ -289,7 +332,11 @@ async function runAllTests() {
               payload = { title: "Meeting", start: "2023-01-01T10:00:00Z" };
               break;
             case "log":
-              payload = { source: "app", message: "App started", level: "info" };
+              payload = {
+                source: "app",
+                message: "App started",
+                level: "info",
+              };
               break;
           }
 
@@ -300,7 +347,9 @@ async function runAllTests() {
 
           const createdEntry = await c.createEntry(entry);
           if (createdEntry.type !== entryType) {
-            throw new Error(`Created entry type mismatch: got ${createdEntry.type}, want ${entryType}`);
+            throw new Error(
+              `Created entry type mismatch: got ${createdEntry.type}, want ${entryType}`,
+            );
           }
         }
       }),
