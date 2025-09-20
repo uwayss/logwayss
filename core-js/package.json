@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node dist/test/smoke.test.js",
+    "test": "npm run build && node dist/test/basic.test.js",
+    "test:smoke": "npm run build && node dist/test/smoke.test.js",
     "clean": "rm -rf dist",
     "prepare": "npm run build",
     "format": "prettier --write ."

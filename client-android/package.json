@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@logwayss/core": "file:../core-js",
+    "@react-navigation/native": "^7.1.17",
+    "@react-navigation/stack": "^7.4.7",
     "expo": "~53.0.22",
     "expo-constants": "~17.1.7",
     "expo-crypto": "^14.1.5",
@@ -24,11 +26,16 @@
     "expo-system-ui": "~5.0.11",
     "react": "19.0.0",
     "react-native": "0.79.6",
+    "react-native-aes": "^1.0.0",
+    "react-native-aes-crypto": "^3.2.1",
     "react-native-crypto": "^2.2.1",
+    "react-native-crypto-js": "^1.0.0",
     "react-native-fs": "^2.20.0",
     "react-native-get-random-values": "^1.11.0",
-    "react-native-safe-area-context": "5.4.0",
-    "react-native-screens": "~4.11.1"
+    "react-native-safe-area-context": "^5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-webview-crypto": "^0.0.27",
+    "scrypt-js": "^3.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

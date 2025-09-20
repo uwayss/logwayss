@@ -1,6 +1,9 @@
 export * as crypto from "./crypto.js";
 export * from "./types.js";
-export * from "./platform.js";
+export type { Platform, FileSystem, CryptoEngine, Database, DatabaseFactory } from "./platform.js";
+export * from "./db-sqlite.js";
+export { nodePlatform } from "./platform-node.js";
+export { expoPlatform } from "./platform-expo.js";
 
 import type { Entry, NewEntry, QueryFilter, Pagination } from "./types.js";
 import { validateNewEntry } from "./types.js";
@@ -83,44 +86,44 @@ export class Core {
       payloadBuf,
     );
 
-    const tx = db.transaction((e: Entry) => {
-      db.prepare(
-        `INSERT INTO entries (id, type, created_at, updated_at, schema_version, source, device_id, meta_json, payload, iv, tag)
-         VALUES (@id, @type, @created_at, @updated_at, @schema_version, @source, @device_id, @meta_json, @payload, @iv, @tag)`,
-      ).run({
-        id: e.id,
-        type: e.type,
-        created_at: e.created_at,
-        updated_at: e.updated_at,
-        schema_version: e.schema_version,
-        source: e.source ?? null,
-        device_id: e.device_id ?? null,
-        meta_json: e.meta ? JSON.stringify(e.meta) : null,
-        payload: ciphertext,
-        iv,
-        tag,
-      });
-      const tags = e.tags ?? [];
-      if (tags.length) {
-        const stmt = db.prepare(
+    // Use a simpler approach without transactions for now
+    await db.run(
+      `INSERT INTO entries (id, type, created_at, updated_at, schema_version, source, device_id, meta_json, payload, iv, tag)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      entry.id,
+      entry.type,
+      entry.created_at,
+      entry.updated_at,
+      entry.schema_version,
+      entry.source ?? null,
+      entry.device_id ?? null,
+      entry.meta ? JSON.stringify(entry.meta) : null,
+      ciphertext,
+      iv,
+      tag
+    );
+    
+    const tags = entry.tags ?? [];
+    if (tags.length) {
+      for (const t of tags) {
+        await db.run(
           "INSERT OR IGNORE INTO entry_tags (entry_id, tag) VALUES (?, ?)",
+          entry.id,
+          t
         );
-        for (const t of tags) stmt.run(e.id, t);
       }
-    });
-    tx(entry);
+    }
+    
     return entry;
   }
   
   async getEntry(_id: string): Promise<Entry> {
     if (!this._sessionKey || !this._dataDir) throw new Error("profile locked");
     const db = await this.getDB();
-    const row = db.prepare("SELECT * FROM entries WHERE id = ?").get(_id);
+    const row = await db.get("SELECT * FROM entries WHERE id = ?", _id);
     if (!row) throw new Error("not found");
-    const tags = db
-      .prepare("SELECT tag FROM entry_tags WHERE entry_id = ?")
-      .all(_id)
-      .map((r: any) => r.tag as string);
+    const tagRows = await db.all("SELECT tag FROM entry_tags WHERE entry_id = ?", _id);
+    const tags = tagRows.map((r: any) => r.tag as string);
 
     const aad = Buffer.from(
       `schema=${row.schema_version}|id=${row.id}|type=${row.type}`,
@@ -168,30 +171,30 @@ export class Core {
     const where: string[] = [];
     const params: any[] = [];
     if (filter.type) {
-      where.push("e.type = ?");
+      where.push("type = ?");
       params.push(filter.type);
     }
     if (filter.time?.from) {
-      where.push("e.created_at >= ?");
+      where.push("created_at >= ?");
       params.push(filter.time.from);
     }
     if (filter.time?.to) {
-      where.push("e.created_at <= ?");
+      where.push("created_at <= ?");
       params.push(filter.time.to);
     }
 
-    let sql = "SELECT e.* FROM entries e";
+    let sql = "SELECT * FROM entries";
     if (filter.tags && filter.tags.length) {
-      sql += " JOIN entry_tags t ON t.entry_id = e.id";
+      sql += " JOIN entry_tags t ON t.entry_id = entries.id";
       where.push(`t.tag IN (${filter.tags.map(() => "?").join(",")})`);
       params.push(...filter.tags);
     }
     if (where.length) sql += " WHERE " + where.join(" AND ");
     if (filter.tags && filter.tags.length) {
-      sql += " GROUP BY e.id HAVING COUNT(DISTINCT t.tag) = ?";
+      sql += " GROUP BY entries.id HAVING COUNT(DISTINCT t.tag) = ?";
       params.push(filter.tags.length);
     }
-    sql += " ORDER BY e.created_at DESC";
+    sql += " ORDER BY created_at DESC";
     if (pagination.limit) {
       sql += " LIMIT ?";
       params.push(pagination.limit);
@@ -201,13 +204,11 @@ export class Core {
       }
     }
 
-    const rows = db.prepare(sql).all(...params);
+    const rows = await db.all(sql, ...params);
     const out: Entry[] = [];
     for (const row of rows) {
-      const tags = db
-        .prepare("SELECT tag FROM entry_tags WHERE entry_id = ?")
-        .all(row.id)
-        .map((r: any) => r.tag as string);
+      const tagRows = await db.all("SELECT tag FROM entry_tags WHERE entry_id = ?", row.id);
+      const tags = tagRows.map((r: any) => r.tag as string);
       const aad = Buffer.from(
         `schema=${row.schema_version}|id=${row.id}|type=${row.type}`,
       );
@@ -258,7 +259,7 @@ export class Core {
     // to release file locks and checkpoint the WAL file.
     if (this._db) {
       try {
-        this._db.close();
+        await this._db.close();
       } catch {}
       this._db = undefined;
     }
@@ -361,7 +362,7 @@ export class Core {
       // Best-effort zeroing
       this._sessionKey.fill(0);
     }
-    if (this._db && typeof this._db.close === "function") {
+    if (this._db) {
       try {
         this._db.close();
       } catch {
